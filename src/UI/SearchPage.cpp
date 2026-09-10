@@ -204,7 +204,7 @@ namespace whereabouts::ui
         const auto filterHeading = activeFilterCount == 0 ?
             TranslateOwned("Filters and sorting") :
             TranslateFormat("Filters and sorting ({} active)", activeFilterCount);
-        const auto filterHeadingId = std::format("{}##WhereaboutsFilters", filterHeading);
+        const auto filterHeadingId = std::format("{}###WhereaboutsFilters", filterHeading);
         if (ImGuiMCP::CollapsingHeader(filterHeadingId.c_str())) {
             const auto filterWidth = ImGuiMCP::GetContentRegionAvail().x;
             const bool pairedTextFilters = filterWidth >= 620.0F;

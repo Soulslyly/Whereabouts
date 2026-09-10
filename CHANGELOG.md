@@ -2,6 +2,7 @@
 
 ## 1.0.1 - Search clarity and recovery
 
+- Keep the Filters and sorting section open when its active-filter count changes.
 - Make Alive, Enabled, Follower, Potential Follower, and Loaded filters identify themselves inside their full-width dropdowns.
 - Show the number of active filter categories in the collapsed Filters and sorting heading.
 - Ignore surrounding whitespace in NPC name, EditorID, FormID, and stable-ID searches.
