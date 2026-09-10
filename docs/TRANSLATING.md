@@ -2,7 +2,7 @@
 
 Use `Interface/Translations/Whereabouts_ENGLISH.txt` as the source template.
 
-The 1.0.0 template contains the menu, status, maintenance, warning, tracking-recovery and tracked-death notification text. NPC, cell and location names come from the game and their source mods. `Whereabouts` is a proper name; tracked quest objectives use each NPC's alias name. The restored journal description is embedded in `Whereabouts.esp`, not in this menu translation file; translating that description requires a translated plugin. Low-level third-party error details may remain in English.
+The 1.0.1 template contains the menu, status, maintenance, warning, search-recovery, tracking-recovery and tracked-death notification text. NPC, cell and location names come from the game and their source mods. `Whereabouts` is a proper name; tracked quest objectives use each NPC's alias name. The restored journal description is embedded in `Whereabouts.esp`, not in this menu translation file; translating that description requires a translated plugin. Low-level third-party error details may remain in English.
 
 Each row has this exact structure:
 

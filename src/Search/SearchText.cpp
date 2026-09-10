@@ -56,6 +56,7 @@ namespace whereabouts
             if (const auto formID = ParseHex(numericText)) {
                 return ParsedSearchText{
                     .kind = SearchTextKind::NumericFormID,
+                    .name = value,
                     .formID = *formID};
             }
         }
@@ -76,6 +77,7 @@ namespace whereabouts
                 }
                 return ParsedSearchText{
                     .kind = SearchTextKind::StableIdentity,
+                    .name = value,
                     .identity = StableIdentityQuery{plugin, *localID}};
             }
         }

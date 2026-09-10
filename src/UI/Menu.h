@@ -16,6 +16,7 @@
 #include "Persistence/RuntimeSettingsState.h"
 #include "Targets/TargetSelection.h"
 #include "Search/LocationSearch.h"
+#include "Search/SearchEngine.h"
 #include "Tracking/UninstallState.h"
 #include "UI/MenuModel.h"
 #include "UI/LocationTravelGate.h"
@@ -80,6 +81,7 @@ namespace whereabouts
 
             void RunSearch(SearchRun run, bool reseedRandom = false);
             void RunLocationSearch(SearchRun run, bool mainSearch = false);
+            [[nodiscard]] SearchFilters BuildSearchFilters() const;
             void RefreshForIndexGeneration();
             void SyncSelectedTarget();
             void RefreshSelectedSnapshot();
@@ -175,6 +177,7 @@ namespace whereabouts
             std::vector<LocationSnapshot> controllerLocationResultsBackup_;
             std::vector<std::string> controllerSuggestionsBackup_;
             std::size_t controllerResultTotalBackup_{0};
+            std::size_t controllerResultTextMatchTotalBackup_{0};
             std::size_t controllerLocationResultTotalBackup_{0};
             std::string controllerSearchErrorBackup_;
             SearchRun controllerSearchRunBackup_{SearchRun::Preview};
@@ -194,6 +197,7 @@ namespace whereabouts
             std::vector<std::string> searchSuggestions_;
             std::optional<PendingEnabledState> pendingEnabledState_;
             std::size_t resultTotal_{0};
+            std::size_t resultTextMatchTotal_{0};
             std::size_t locationResultTotal_{0};
             std::size_t searchLocationResultTotal_{0};
             SearchRefreshState searchRefreshState_;
@@ -226,6 +230,7 @@ namespace whereabouts
             bool genericOnly_{false};
             bool genericAutoContext_{false};
             bool pluginSuggestionsDismissed_{false};
+            bool searchAfterIndexRefresh_{false};
             bool searchSortUiDirty_{false};
             float searchPaneRatio_{0.46F};
             float locationPaneRatio_{0.55F};

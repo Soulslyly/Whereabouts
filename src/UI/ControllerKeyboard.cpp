@@ -64,6 +64,7 @@ namespace whereabouts::ui
             searchLocationResults_ = controllerLocationResultsBackup_;
             searchSuggestions_ = controllerSuggestionsBackup_;
             resultTotal_ = controllerResultTotalBackup_;
+            resultTextMatchTotal_ = controllerResultTextMatchTotalBackup_;
             searchLocationResultTotal_ = controllerLocationResultTotalBackup_;
             searchError_ = controllerSearchErrorBackup_;
             searchRefreshState_.Select(controllerSearchRunBackup_);

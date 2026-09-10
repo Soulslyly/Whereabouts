@@ -1,6 +1,6 @@
 # Known Issues and Limitations
 
-There are currently no confirmed unresolved bugs listed for Whereabouts 1.0.0. The behaviors below are known limitations of Skyrim, external UI mods, or the information available to Whereabouts.
+There are currently no confirmed unresolved bugs listed for Whereabouts 1.0.1. The behaviors below are known limitations of Skyrim, external UI mods, or the information available to Whereabouts.
 
 ## Tracking Across Worldspaces
 

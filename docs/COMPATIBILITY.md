@@ -1,4 +1,4 @@
-# Whereabouts 1.0.0 Compatibility Matrix
+# Whereabouts 1.0.1 Compatibility Matrix
 
 Whereabouts uses one Address Library/CommonLibSSE-NG DLL for the supported Skyrim runtime lines. A row marked **runtime pending** is structurally supported but must not be advertised as verified until the final candidate passes the full in-game matrix in `TESTING.md`.
 
@@ -16,7 +16,7 @@ Whereabouts uses one Address Library/CommonLibSSE-NG DLL for the supported Skyri
 - Supported SMF DLL fixed versions are major version 3 with minor version 14 or later. A future major version is not assumed compatible.
 - All 80 framework/ImGui functions used by the current build must be exported before the framework wrapper is used. This includes the four registration/command bootstrap functions and the UI surface derived from the shipped source.
 - The legacy floating-point version export is neither resolved nor called; it does not participate in compatibility decisions or logging.
-- The exact installed 3.14.0.0 DLL currently exposes the complete framework/ImGui export surface used by 1.0.0. The validator derives that list from the shipped source and consumer header.
+- The exact installed 3.14.0.0 DLL currently exposes the complete framework/ImGui export surface used by 1.0.1. The validator derives that list from the shipped source and consumer header.
 
 ## Optional More Informative Console support
 

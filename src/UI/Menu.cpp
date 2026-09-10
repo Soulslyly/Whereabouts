@@ -167,6 +167,29 @@ namespace whereabouts::ui
         sessionResetRequested_ = true;
     }
 
+    SearchFilters Menu::BuildSearchFilters() const
+    {
+        SearchFilters filters;
+        filters.selectedPlugins = selectedPluginFilters_;
+        if (selectedPluginFilters_.empty() && pluginFilter_.front() != '\0') {
+            filters.plugin = pluginFilter_.data();
+        }
+        if (locationFilter_.front() != '\0') filters.location = locationFilter_.data();
+        if (aliveFilter_ != 0) filters.alive = aliveFilter_ == 1;
+        if (enabledFilter_ != 0) filters.enabled = enabledFilter_ == 1;
+        if (teammateFilter_ != 0) filters.teammate = teammateFilter_ == 1;
+        if (potentialFollowerFilter_ != 0) {
+            filters.potentialFollower = potentialFollowerFilter_ == 1;
+        }
+        if (loadedFilter_ != 0) filters.loaded = loadedFilter_ == 1;
+        filters.favoritesOnly = favoritesOnly_;
+        filters.trackedOnly = trackedOnly_;
+        filters.sameLocationOnly = sameLocationOnly_;
+        filters.includeGeneric = includeGeneric_;
+        filters.genericOnly = genericOnly_;
+        return filters;
+    }
+
     void Menu::RunSearch(SearchRun run, bool reseedRandom)
     {
         searchRefreshState_.Select(run);
@@ -182,23 +205,7 @@ namespace whereabouts::ui
         if (IncludesNpcs(searchContent_)) {
             SearchQuery query;
             query.text = searchText_.data();
-            query.filters.selectedPlugins = selectedPluginFilters_;
-            if (selectedPluginFilters_.empty() && pluginFilter_.front() != '\0') {
-                query.filters.plugin = pluginFilter_.data();
-            }
-            if (locationFilter_.front() != '\0') query.filters.location = locationFilter_.data();
-            if (aliveFilter_ != 0) query.filters.alive = aliveFilter_ == 1;
-            if (enabledFilter_ != 0) query.filters.enabled = enabledFilter_ == 1;
-            if (teammateFilter_ != 0) query.filters.teammate = teammateFilter_ == 1;
-            if (potentialFollowerFilter_ != 0) {
-                query.filters.potentialFollower = potentialFollowerFilter_ == 1;
-            }
-            if (loadedFilter_ != 0) query.filters.loaded = loadedFilter_ == 1;
-            query.filters.favoritesOnly = favoritesOnly_;
-            query.filters.trackedOnly = trackedOnly_;
-            query.filters.sameLocationOnly = sameLocationOnly_;
-            query.filters.includeGeneric = includeGeneric_;
-            query.filters.genericOnly = genericOnly_;
+            query.filters = BuildSearchFilters();
             query.sort = static_cast<SortKey>(std::clamp(sortIndex_, 0, 7));
             query.ascending = ascending_;
             query.randomSeed = randomSeed_;
@@ -216,18 +223,32 @@ namespace whereabouts::ui
                 suggestionHasActiveFilters = HasActiveSearchFilters(query.filters);
                 results_ = std::move(matches->visible);
                 resultTotal_ = matches->total;
+                resultTextMatchTotal_ = matches->textMatchTotal;
                 searchError_.clear();
             } else {
                 results_.clear();
                 resultTotal_ = 0;
+                resultTextMatchTotal_ = 0;
                 searchError_ = std::get<SearchError>(std::move(result)).message;
             }
         } else {
             results_.clear();
             resultTotal_ = 0;
+            resultTextMatchTotal_ = 0;
             searchError_.clear();
         }
         RunLocationSearch(run, true);
+        if (run == SearchRun::Submitted && searchError_.empty() &&
+            resultTotal_ + searchLocationResultTotal_ == 0) {
+            const auto view = index_.Snapshot();
+            logger::info(
+                "Submitted search returned no visible results: query='{}', text matches={}, active filters={}, NPC catalog={}, location catalog={}",
+                searchText_.data(),
+                resultTextMatchTotal_,
+                ActiveSearchFilterCount(BuildSearchFilters()),
+                view && view->catalog ? view->catalog->size() : 0,
+                view && view->locations ? view->locations->size() : 0);
+        }
         if (suggestionKind && ShouldOfferTypoSuggestions(
                 run,
                 *suggestionKind,
@@ -323,6 +344,7 @@ namespace whereabouts::ui
             commandsBlocked_ = false;
             uninstallPhase_ = UninstallPhase::Idle;
             manualRefreshState_ = ManualRefreshState::Idle;
+            searchAfterIndexRefresh_ = false;
             indexRefreshStatus_.clear();
             uninstallStatus_.clear();
             savedEntriesStatus_.clear();
@@ -354,8 +376,13 @@ namespace whereabouts::ui
                     "Search index refreshed. {} NPCs and {} locations available.",
                     view->catalog->size(),
                     view->locations->size());
+                if (searchAfterIndexRefresh_) {
+                    searchRefreshState_.Request();
+                    searchAfterIndexRefresh_ = false;
+                }
             } else if (manualRefreshState_ == ManualRefreshState::Failed) {
                 indexRefreshStatus_ = TranslateOwned(IndexFailureText(view->failure));
+                searchAfterIndexRefresh_ = false;
             }
         }
         if (view && (view->session != seenIndexSession_ || view->revision != seenIndexRevision_)) {
@@ -433,10 +460,15 @@ namespace whereabouts::ui
         case IndexRequestResult::AlreadyReady:
             manualRefreshState_ = ManualRefreshState::Complete;
             indexRefreshStatus_ = TranslateOwned("Search index is ready.");
+            if (searchAfterIndexRefresh_) {
+                searchRefreshState_.Request();
+                searchAfterIndexRefresh_ = false;
+            }
             break;
         case IndexRequestResult::Failed:
             manualRefreshState_ = ManualRefreshState::Failed;
             indexRefreshStatus_ = TranslateOwned("Search index refresh could not start.");
+            searchAfterIndexRefresh_ = false;
             break;
         }
     }

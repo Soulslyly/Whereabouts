@@ -1,9 +1,13 @@
 #pragma once
 
+#include <cstdint>
 #include <string_view>
 
 namespace whereabouts::version
 {
+    inline constexpr std::uint16_t kMajor = @PROJECT_VERSION_MAJOR@;
+    inline constexpr std::uint16_t kMinor = @PROJECT_VERSION_MINOR@;
+    inline constexpr std::uint16_t kPatch = @PROJECT_VERSION_PATCH@;
     inline constexpr std::string_view kNumeric = "@WHEREABOUTS_NUMERIC_VERSION@";
     inline constexpr std::string_view kDisplay = "@WHEREABOUTS_DISPLAY_VERSION@";
     inline constexpr std::string_view kAbout = "Version @WHEREABOUTS_NUMERIC_VERSION@";

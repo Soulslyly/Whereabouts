@@ -155,6 +155,7 @@ namespace whereabouts::ui
                 controllerLocationResultsBackup_ = searchLocationResults_;
                 controllerSuggestionsBackup_ = searchSuggestions_;
                 controllerResultTotalBackup_ = resultTotal_;
+                controllerResultTextMatchTotalBackup_ = resultTextMatchTotal_;
                 controllerLocationResultTotalBackup_ = searchLocationResultTotal_;
                 controllerSearchErrorBackup_ = searchError_;
                 controllerSearchRunBackup_ = searchRefreshState_.Current();
@@ -199,7 +200,12 @@ namespace whereabouts::ui
             }
         }
         ImGuiMCP::Spacing();
-        if (ImGuiMCP::CollapsingHeader(TranslateText("Filters and sorting"))) {
+        const auto activeFilterCount = ActiveSearchFilterCount(BuildSearchFilters());
+        const auto filterHeading = activeFilterCount == 0 ?
+            TranslateOwned("Filters and sorting") :
+            TranslateFormat("Filters and sorting ({} active)", activeFilterCount);
+        const auto filterHeadingId = std::format("{}##WhereaboutsFilters", filterHeading);
+        if (ImGuiMCP::CollapsingHeader(filterHeadingId.c_str())) {
             const auto filterWidth = ImGuiMCP::GetContentRegionAvail().x;
             const bool pairedTextFilters = filterWidth >= 620.0F;
             std::optional<std::size_t> removePluginFilter;
@@ -331,10 +337,12 @@ namespace whereabouts::ui
 
             ImGuiMCP::Spacing();
             const std::array stateNames{TranslateText("Any"), TranslateText("Yes"), TranslateText("No")};
-            const auto stateFilter = [&](const char* label, int& value) {
+            const auto stateFilter = [&](const char* label, int& value, const char* tooltip) {
                 bool changed = false;
                 ImGuiMCP::SetNextItemWidth(-1.0F);
-                if (ImGuiMCP::BeginCombo(label, stateNames[std::clamp(value, 0, 2)])) {
+                const auto stateIndex = std::clamp(value, 0, 2);
+                const auto preview = TriStateFilterPreview(label, stateNames[stateIndex]);
+                if (ImGuiMCP::BeginCombo(label, preview.c_str())) {
                     for (int index = 0; index < static_cast<int>(stateNames.size()); ++index) {
                         if (ImGuiMCP::Selectable(stateNames[index], value == index)) {
                             value = index;
@@ -343,6 +351,7 @@ namespace whereabouts::ui
                     }
                     ImGuiMCP::EndCombo();
                 }
+                DelayedTooltip(tooltip);
                 return changed;
             };
             ImGuiMCP::BeginDisabled(!IncludesNpcs(searchContent_));
@@ -352,19 +361,25 @@ namespace whereabouts::ui
                     stateColumns,
                     ImGuiMCP::ImGuiTableFlags_SizingStretchSame)) {
                 static_cast<void>(ImGuiMCP::TableNextColumn());
-                searchOptionsChanged |= stateFilter(TranslateText("Alive"), aliveFilter_);
-                static_cast<void>(ImGuiMCP::TableNextColumn());
-                searchOptionsChanged |= stateFilter(TranslateText("Enabled"), enabledFilter_);
-                static_cast<void>(ImGuiMCP::TableNextColumn());
-                searchOptionsChanged |= stateFilter(TranslateText(kFollowerFilterLabel), teammateFilter_);
-                DelayedTooltip(TranslateText("Currently following the player."));
+                searchOptionsChanged |= stateFilter(
+                    TranslateText("Alive"), aliveFilter_,
+                    TranslateText("Any ignores this status. Yes requires it. No excludes it."));
                 static_cast<void>(ImGuiMCP::TableNextColumn());
                 searchOptionsChanged |= stateFilter(
-                    TranslateText("Potential Follower"), potentialFollowerFilter_);
-                DelayedTooltip(TranslateText(
-                    "In Skyrim's potential-follower faction; recruitment can still be blocked."));
+                    TranslateText("Enabled"), enabledFilter_,
+                    TranslateText("Any ignores this status. Yes requires it. No excludes it."));
                 static_cast<void>(ImGuiMCP::TableNextColumn());
-                searchOptionsChanged |= stateFilter(TranslateText("Loaded"), loadedFilter_);
+                searchOptionsChanged |= stateFilter(
+                    TranslateText(kFollowerFilterLabel), teammateFilter_,
+                    TranslateText("Currently following. Any ignores it; Yes requires it; No excludes it."));
+                static_cast<void>(ImGuiMCP::TableNextColumn());
+                searchOptionsChanged |= stateFilter(
+                    TranslateText("Potential Follower"), potentialFollowerFilter_,
+                    TranslateText("Potential-follower faction. Any ignores it; Yes requires it; No excludes it."));
+                static_cast<void>(ImGuiMCP::TableNextColumn());
+                searchOptionsChanged |= stateFilter(
+                    TranslateText("Loaded"), loadedFilter_,
+                    TranslateText("Any ignores this status. Yes requires it. No excludes it."));
                 ImGuiMCP::EndTable();
             }
 
@@ -494,6 +509,36 @@ namespace whereabouts::ui
                 resultTotal_ + searchLocationResultTotal_);
             ImGuiMCP::TextUnformatted(summary.c_str());
             ImGuiMCP::Separator();
+
+            const auto recovery = ClassifySearchMissRecovery(
+                searchRefreshState_.Current(),
+                !searchError_.empty(),
+                resultTextMatchTotal_,
+                resultTotal_,
+                searchLocationResultTotal_,
+                ActiveSearchFilterCount(BuildSearchFilters()));
+            if (recovery == SearchMissRecovery::ClearFilters) {
+                ImGuiMCP::TextWrapped("%s", TranslateText(
+                    "NPC matches were found but hidden by the current filters."));
+                if (ImGuiMCP::Button(
+                        TranslateText("Clear Filters and Search Again"), {-1.0F, 0.0F})) {
+                    ResetFiltersToDefaults();
+                    RunSearch(SearchRun::Submitted, true);
+                }
+                ImGuiMCP::Spacing();
+            } else if (recovery == SearchMissRecovery::RefreshIndex) {
+                ImGuiMCP::TextWrapped("%s", TranslateText(
+                    "No matching NPC or location is in the current search index."));
+                ImGuiMCP::BeginDisabled(manualRefreshState_ == ManualRefreshState::Waiting);
+                if (ImGuiMCP::Button(
+                        TranslateText("Refresh Index and Search Again"), {-1.0F, 0.0F})) {
+                    searchRefreshState_.Select(SearchRun::Submitted);
+                    searchAfterIndexRefresh_ = true;
+                    QueueIndexRefresh();
+                }
+                ImGuiMCP::EndDisabled();
+                ImGuiMCP::Spacing();
+            }
 
             const float footerReserve = ImGuiMCP::GetFrameHeightWithSpacing() * 1.35F;
             bool moreRowsBelow = false;

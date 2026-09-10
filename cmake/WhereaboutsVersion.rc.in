@@ -1,8 +1,8 @@
 #include <winver.h>
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 1,0,0,0
- PRODUCTVERSION 1,0,0,0
+ FILEVERSION 1,0,1,0
+ PRODUCTVERSION 1,0,1,0
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -19,7 +19,7 @@ BEGIN
         BEGIN
             VALUE "CompanyName", "Whereabouts\0"
             VALUE "FileDescription", "Whereabouts SKSE Plugin\0"
-            VALUE "FileVersion", "1.0.0.0\0"
+            VALUE "FileVersion", "1.0.1.0\0"
             VALUE "InternalName", "Whereabouts\0"
             VALUE "OriginalFilename", "Whereabouts.dll\0"
             VALUE "ProductName", "Whereabouts\0"

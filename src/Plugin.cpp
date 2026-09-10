@@ -185,7 +185,11 @@ namespace whereabouts
 
 SKSEPluginVersion = []() constexpr {
     SKSE::PluginVersionData version;
-    version.PluginVersion(REL::Version{1, 0, 0, 0});
+    version.PluginVersion(REL::Version{
+        whereabouts::version::kMajor,
+        whereabouts::version::kMinor,
+        whereabouts::version::kPatch,
+        0});
     version.PluginName("Whereabouts");
     version.AuthorName("Whereabouts");
     version.UsesAddressLibrary();
@@ -201,7 +205,11 @@ SKSE_EXPORT bool SKSEPlugin_Query(SKSE::QueryInterface*, SKSE::PluginInfo* plugi
         if (!pluginInfo) return false;
         pluginInfo->infoVersion = SKSE::PluginInfo::kVersion;
         pluginInfo->name = "Whereabouts";
-        pluginInfo->version = REL::Version{1, 0, 0, 0}.pack();
+        pluginInfo->version = REL::Version{
+            whereabouts::version::kMajor,
+            whereabouts::version::kMinor,
+            whereabouts::version::kPatch,
+            0}.pack();
         return true;
     }, false, LogContainedCallbackException);
 }

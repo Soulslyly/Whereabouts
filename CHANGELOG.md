@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.0.1 - Search clarity and recovery
+
+- Make Alive, Enabled, Follower, Potential Follower, and Loaded filters identify themselves inside their full-width dropdowns.
+- Show the number of active filter categories in the collapsed Filters and sorting heading.
+- Ignore surrounding whitespace in NPC name, EditorID, FormID, and stable-ID searches.
+- Distinguish matches hidden by filters from entries absent from the current index, with explicit clear-and-retry or refresh-and-retry actions.
+- Add one concise diagnostic log entry for submitted zero-result searches to make missing-NPC reports actionable.
+
+No ESP, Papyrus, tracking, command, serialization, save schema, settings schema, dependency, or runtime-support changes are included.
+
 ## 1.0.0 - Release candidate
 
 - Restore the Whereabouts journal title and description. Preserve NPC objective notices while marking the quest's introductory HUD announcement handled.

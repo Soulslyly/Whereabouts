@@ -310,7 +310,6 @@ namespace whereabouts
             return SearchError{"Search index is unavailable"};
         }
         const auto& source = *sourceView->catalog;
-        const auto foldedText = FoldTextForSearch(query.text);
         const auto foldedPluginFilter = query.filters.plugin ?
             FoldTextForSearch(*query.filters.plugin) : std::string{};
         const auto foldedLocationFilter = query.filters.location ?
@@ -319,21 +318,22 @@ namespace whereabouts
         const auto parsedText = ParseSearchText(query.text);
         if (!parsedText) return SearchError{parsedText.error().message};
         parsed = *parsedText;
+        const auto foldedText = FoldTextForSearch(parsed.name);
         if (parsed.kind == SearchTextKind::NumericFormID) {
             const bool runtimeExists = std::ranges::any_of(source, [&parsed](const NpcSnapshot& npc) {
                 return MatchesNumericFormID(npc, parsed.formID);
             });
             if (!runtimeExists) {
                 parsed.kind = SearchTextKind::Name;
-                parsed.name = query.text;
             }
         }
 
         std::vector<std::size_t> matches;
         matches.reserve(source.size());
+        std::size_t textMatchTotal = 0;
         for (std::size_t index = 0; index < source.size(); ++index) {
             const auto& npc = source[index];
-            bool textMatches = query.text.empty();
+            bool textMatches = parsed.name.empty();
             if (!textMatches) {
                 switch (parsed.kind) {
                 case SearchTextKind::Name:
@@ -350,6 +350,7 @@ namespace whereabouts
                     break;
                 }
             }
+            if (textMatches) ++textMatchTotal;
             if (textMatches && MatchesFilters(
                     npc, query, foldedPluginFilter, foldedLocationFilter)) {
                 matches.push_back(index);
@@ -395,7 +396,7 @@ namespace whereabouts
             npc.favorite = IsFavorite(npc, query);
             visible.push_back(std::move(npc));
         }
-        return SearchMatches{std::move(visible), total};
+        return SearchMatches{std::move(visible), total, textMatchTotal};
     }
 
     std::vector<std::string> SuggestNpcNames(

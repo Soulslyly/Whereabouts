@@ -345,6 +345,38 @@ namespace whereabouts::ui
         Submitted
     };
 
+    [[nodiscard]] inline std::string TriStateFilterPreview(
+        std::string_view label,
+        std::string_view state)
+    {
+        return std::format("{}: {}", label, state);
+    }
+
+    enum class SearchMissRecovery
+    {
+        None,
+        ClearFilters,
+        RefreshIndex
+    };
+
+    [[nodiscard]] constexpr SearchMissRecovery ClassifySearchMissRecovery(
+        SearchRun run,
+        bool hasError,
+        std::size_t textMatchTotal,
+        std::size_t npcMatchTotal,
+        std::size_t locationMatchTotal,
+        std::size_t activeFilterCount) noexcept
+    {
+        if (run != SearchRun::Submitted || hasError ||
+            npcMatchTotal + locationMatchTotal != 0) {
+            return SearchMissRecovery::None;
+        }
+        if (textMatchTotal != 0 && activeFilterCount != 0) {
+            return SearchMissRecovery::ClearFilters;
+        }
+        return SearchMissRecovery::RefreshIndex;
+    }
+
     [[nodiscard]] constexpr bool ShouldOfferTypoSuggestions(
         SearchRun run,
         SearchTextKind kind,

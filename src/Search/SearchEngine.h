@@ -56,24 +56,31 @@ namespace whereabouts
         std::vector<FormIdentity> favoriteIdentities;
     };
 
+    [[nodiscard]] constexpr std::size_t ActiveSearchFilterCount(
+        const SearchFilters& filters) noexcept
+    {
+        std::size_t count = 0;
+        count += filters.plugin.has_value() || !filters.selectedPlugins.empty();
+        count += filters.minimumLevel.has_value();
+        count += filters.maximumLevel.has_value();
+        count += filters.alive.has_value();
+        count += filters.enabled.has_value();
+        count += filters.teammate.has_value();
+        count += filters.potentialFollower.has_value();
+        count += filters.loaded.has_value();
+        count += filters.location.has_value();
+        count += filters.favoritesOnly;
+        count += filters.trackedOnly;
+        count += filters.sameLocationOnly;
+        count += filters.includeGeneric;
+        count += filters.genericOnly;
+        return count;
+    }
+
     [[nodiscard]] constexpr bool HasActiveSearchFilters(
         const SearchFilters& filters) noexcept
     {
-        return filters.plugin.has_value() ||
-            !filters.selectedPlugins.empty() ||
-            filters.minimumLevel.has_value() ||
-            filters.maximumLevel.has_value() ||
-            filters.alive.has_value() ||
-            filters.enabled.has_value() ||
-            filters.teammate.has_value() ||
-            filters.potentialFollower.has_value() ||
-            filters.loaded.has_value() ||
-            filters.location.has_value() ||
-            filters.favoritesOnly ||
-            filters.trackedOnly ||
-            filters.sameLocationOnly ||
-            filters.includeGeneric ||
-            filters.genericOnly;
+        return ActiveSearchFilterCount(filters) != 0;
     }
 
     struct SearchError
@@ -85,6 +92,7 @@ namespace whereabouts
     {
         std::vector<NpcSnapshot> visible;
         std::size_t total{0};
+        std::size_t textMatchTotal{0};
     };
 
     using SearchResult = std::variant<SearchMatches, SearchError>;

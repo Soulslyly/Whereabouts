@@ -1,7 +1,7 @@
-Whereabouts 1.0.0
-Status: publishing-only successor tool-validated; Skyrim acceptance pending
-Parent: Whereabouts 1.0.0 Release
-Created: 2026-09-09
+Whereabouts 1.0.1
+Status: maintenance candidate; Skyrim acceptance pending
+Parent: Whereabouts 1.0.0+publish.1
+Created: 2026-09-10
 Runtime development target: Skyrim 1.6.1170
 Runtime targets: Skyrim 1.5.97, 1.6.1170, and 1.7.104
 CommonLibSSE-NG: v7.2.0 (7a60f4de794095d7b0f8928d1b930a52e9a7da83)
