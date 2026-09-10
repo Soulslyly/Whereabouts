@@ -4,6 +4,8 @@ This is my take on the [NPC Lookup](https://www.nexusmods.com/skyrimspecialediti
 
 Those are just some of the things you might use it for. Whereabouts covers a ton of features, so see if anything tickles your little fancy.
 
+**Project links:** [Releases](https://github.com/Soulslyly/Whereabouts/releases) · [Changelog](CHANGELOG.md) · [Roadmap](ROADMAP.md) · [Known issues](KNOWN_ISSUES.md) · [Get help](SUPPORT.md) · [Papyrus API](docs/PAPYRUS_API.md) · [Translations](docs/TRANSLATING.md)
+
 ## Main Features
 
 - Search NPCs and locations
@@ -88,6 +90,15 @@ If AI mods aren't for you, I get it. Please keep the comments respectful and avo
 - [Translating Whereabouts](docs/TRANSLATING.md) — format, encoding, installation, testing, and CJK font support
 - [Compatibility](docs/COMPATIBILITY.md) — runtime and dependency details
 - [Dependency lock](docs/DEPENDENCIES.md) — exact build versions and upstream sources
+
+## Community
+
+Found a bug or have an idea? You can use [GitHub Issues](https://github.com/Soulslyly/Whereabouts/issues), leave a comment on Nexus, or just follow the project quietly. GitHub is optional; you do not need an account here to use the mod.
+
+- Check [Known Issues](KNOWN_ISSUES.md) before reporting a problem.
+- Read [Support](SUPPORT.md) for the small amount of information that makes a report useful.
+- See the [Roadmap](ROADMAP.md) for planned work and ideas under investigation.
+- See [Contributing](CONTRIBUTING.md) if you want to submit a translation, patch, or API improvement.
 
 ## Building
 
