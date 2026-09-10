@@ -1,0 +1,32 @@
+# Build output and local dependency caches
+build/
+.deps/
+staging/
+release/
+papyrus/Compiled/
+papyrus/bin/
+
+# Generated runtime artifacts
+plugin/*.esp
+*.dll
+*.pex
+*.pdb
+*.ilk
+*.obj
+*.exp
+*.lib
+*.log
+*.cache
+
+# Tool output
+tools/**/bin/
+tools/**/obj/
+.vs/
+.vscode/
+CMakeUserPresets.json
+
+# Mod-manager bookkeeping
+meta.ini
+*.meta
+__folder_managed_by_vortex
+__folder_managed_by_vortex.json

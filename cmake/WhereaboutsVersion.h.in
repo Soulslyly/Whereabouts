@@ -1,0 +1,10 @@
+#pragma once
+
+#include <string_view>
+
+namespace whereabouts::version
+{
+    inline constexpr std::string_view kNumeric = "@WHEREABOUTS_NUMERIC_VERSION@";
+    inline constexpr std::string_view kDisplay = "@WHEREABOUTS_DISPLAY_VERSION@";
+    inline constexpr std::string_view kAbout = "Version @WHEREABOUTS_NUMERIC_VERSION@";
+}

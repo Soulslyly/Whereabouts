@@ -1,0 +1,6 @@
+[submodule "external/CommonLibSSE-NG"]
+	path = external/CommonLibSSE-NG
+	url = https://github.com/alandtse/CommonLibVR.git
+[submodule "include"]
+	path = include
+	url = https://github.com/QTR-Modding/SKSE-Menu-Framework-3-API.git
