@@ -4,6 +4,7 @@
 
 - Compact the Search filter panel around consistent responsive rows so more results remain visible.
 - Keep Plugin, Location, and Search Content controls together; keep Sort, Direction, and Clear Filters together.
+- Align the Plugin, Location, Search Content, Sort, Direction, and Clear Filters controls consistently.
 - Preserve all filtering semantics, saves, settings, commands, tracking, Papyrus, ESP records, translations, and runtime support.
 - Carry forward the beta.2 and beta.3 dependency, archive, and Papyrus privacy hardening.
 

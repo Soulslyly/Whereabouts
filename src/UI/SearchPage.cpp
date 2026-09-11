@@ -219,6 +219,10 @@ namespace whereabouts::ui
                 }
                 return width;
             };
+            const auto drawControlLabel = [](const char* label) {
+                ImGuiMCP::AlignTextToFramePadding();
+                ImGuiMCP::TextUnformatted(label);
+            };
             std::optional<std::size_t> removePluginFilter;
             float pluginRowRemaining = filterWidth;
             for (std::size_t index = 0; index < selectedPluginFilters_.size(); ++index) {
@@ -260,7 +264,7 @@ namespace whereabouts::ui
                     primaryControlColumns,
                     ImGuiMCP::ImGuiTableFlags_SizingStretchSame)) {
                 static_cast<void>(ImGuiMCP::TableNextColumn());
-                ImGuiMCP::TextUnformatted(TranslateText("Plugin contains"));
+                drawControlLabel(TranslateText("Plugin contains"));
                 ImGuiMCP::SetNextItemWidth(-1.0F);
                 const bool pluginEdited = ImGuiMCP::InputText("##PluginContains", pluginFilter_.data(), pluginFilter_.size());
                 const bool pluginActivated = ImGuiMCP::IsItemActivated();
@@ -268,11 +272,11 @@ namespace whereabouts::ui
                 searchOptionsChanged |= pluginEdited;
                 if (pluginEdited || pluginActivated) pluginSuggestionsDismissed_ = false;
                 static_cast<void>(ImGuiMCP::TableNextColumn());
-                ImGuiMCP::TextUnformatted(TranslateText("Location contains"));
+                drawControlLabel(TranslateText("Location contains"));
                 ImGuiMCP::SetNextItemWidth(-1.0F);
                 searchOptionsChanged |= ImGuiMCP::InputText("##LocationContains", locationFilter_.data(), locationFilter_.size());
                 static_cast<void>(ImGuiMCP::TableNextColumn());
-                ImGuiMCP::TextUnformatted(TranslateText("Search content"));
+                drawControlLabel(TranslateText("Search content"));
                 ImGuiMCP::SetNextItemWidth(-1.0F);
                 if (ImGuiMCP::BeginCombo(
                         "##WhereaboutsSearchContent",
@@ -291,7 +295,7 @@ namespace whereabouts::ui
                     const std::array orderNames{
                         TranslateText("NPCs first"), TranslateText("Locations first")};
                     int orderIndex = static_cast<int>(resultSectionOrder_);
-                    ImGuiMCP::TextUnformatted(TranslateText("Result order"));
+                    drawControlLabel(TranslateText("Result order"));
                     ImGuiMCP::SetNextItemWidth(-1.0F);
                     if (ImGuiMCP::BeginCombo(
                             "##WhereaboutsResultOrder",
@@ -491,7 +495,7 @@ namespace whereabouts::ui
                     ImGuiMCP::ImGuiTableFlags_SizingStretchSame)) {
                 ImGuiMCP::BeginDisabled(!IncludesNpcs(searchContent_));
                 static_cast<void>(ImGuiMCP::TableNextColumn());
-                ImGuiMCP::TextUnformatted(TranslateText("Sort by"));
+                drawControlLabel(TranslateText("Sort by"));
                 ImGuiMCP::SetNextItemWidth(-1.0F);
                 if (ImGuiMCP::BeginCombo(
                         "##WhereaboutsSortKey",
@@ -509,7 +513,7 @@ namespace whereabouts::ui
                     ImGuiMCP::EndCombo();
                 }
                 static_cast<void>(ImGuiMCP::TableNextColumn());
-                ImGuiMCP::TextUnformatted(TranslateText("Direction"));
+                drawControlLabel(TranslateText("Direction"));
                 const auto selectedSort = static_cast<SortKey>(std::clamp(sortIndex_, 0, 7));
                 const bool usesDirection = SortUsesDirection(selectedSort);
                 if (!usesDirection) {
@@ -533,7 +537,7 @@ namespace whereabouts::ui
                 ImGuiMCP::EndDisabled();
                 ImGuiMCP::EndDisabled();
                 static_cast<void>(ImGuiMCP::TableNextColumn());
-                ImGuiMCP::TextUnformatted(" ");
+                drawControlLabel(" ");
                 if (ImGuiMCP::Button(
                         TranslateText("Clear Filters"), {-1.0F, 0.0F})) {
                     ResetFiltersToDefaults();
