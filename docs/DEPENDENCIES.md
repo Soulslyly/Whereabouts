@@ -1,4 +1,4 @@
-# Whereabouts 1.0.0 Dependency Lock
+# Whereabouts 1.0.2 Dependency Lock
 
 ## Local build environment
 
@@ -18,7 +18,7 @@ The packaged DLL uses the dynamic Microsoft C/C++ runtime. Players therefore nee
 ## Development runtime evidence
 
 - Legacy target: `1.5.97.0` / SKSE `2.0.20` / exact format-1 `version-1-5-97-0.bin`; exact SMF 3.14.0.0 and BEES load evidence is present, but Whereabouts runtime acceptance is pending
-- Preserved Skyrim target: `1.6.1170.0` / SKSE `2.2.8` / Address Library v12 format 2
+- Preserved Skyrim target: `1.6.1170.0` / SKSE `2.2.6` / Address Library v12 format 2
 - Current Skyrim target: `1.7.104.0` / SKSE `2.3.1` / exact `versionlib-1-7-104-0.bin`
 - The current SKSE 2.3.1 loader log identifies runtime `01070680` and records a complete boot into the test profile.
 - SKSE Menu Framework package metadata reports `3.14.1.0`; its DLL metadata and runtime log self-report `3.14.0.0`. The installed binary loaded correctly under SKSE 2.3.1.
@@ -27,6 +27,9 @@ Installed game and mod-manager paths are read-only evidence and are intentionall
 
 ## Pinned source authorities
 
+- Where Are You source: `https://github.com/k0mp1ex/where-are-you.git`
+  - Commit: `04705c4d5dc22183949393db16384bf027b88c04`
+  - License: MIT
 - SKSE Menu Framework 3 consumer API: `https://github.com/QTR-Modding/SKSE-Menu-Framework-3-API.git`
   - Commit: `1dcb70179076aae4ab626f43c5baab2735ca5877`
   - License: LGPL-2.1
@@ -37,13 +40,13 @@ Installed game and mod-manager paths are read-only evidence and are intentionall
   - Version: `7.2.0`
   - Commit: `7a60f4de794095d7b0f8928d1b930a52e9a7da83`
   - License: GPL-3.0-or-later with the Modding Exception in `EXCEPTIONS.md`
-  - Git checkouts pin it as the `external/CommonLibSSE-NG` submodule. The downloadable Source ZIP includes the same exact source tree for a self-contained rebuild.
+  - Source is vendored under `external/CommonLibSSE-NG` for an exact reproducible build.
 - Microsoft vcpkg baseline: `04a9d8e5212d01ee1dd9478eadd9caade4f8b0d4`
 
 ## Runtime targets
 
 - Legacy release test: Skyrim `1.5.97` / SKSE `2.0.20` / Address Library all-in-one legacy database / BEES
-- Development and first semantic test: Skyrim `1.6.1170` / SKSE `2.2.8` / Address Library all-in-one v12
+- Development and first semantic test: Skyrim `1.6.1170` / SKSE `2.2.6` / Address Library all-in-one v12
 - Current-runtime release test: Skyrim `1.7.104` / SKSE `2.3.1` / Address Library all-in-one v13
 - Required menu framework for all targets: SKSE Menu Framework `3.14.1` or a later compatible major-3 release. Whereabouts checks the loaded DLL fixed version and complete required-export surface and does not register below fixed version `3.14.x`; it does not resolve or call the obsolete float-version export.
 - The official SKSE site was rechecked on 2026-09-04 and identifies Steam runtime `1.7.104` with SKSE `2.3.1` as the current Anniversary Edition pair.
@@ -84,4 +87,4 @@ The generator fixes the plugin name, HEDR 1.71 light allocation, Skyrim.esm mast
 
 ## Release verification
 
-Use the supplied Release checklist and production validators for each rebuilt archive. Compiler success and structural plugin validation do not prove game behavior. The 1.0.0 candidate requires final-hash in-game acceptance on all three runtime targets, especially tracking restart and journal notifications. No runtime claim follows from the dependency matrix alone.
+Use the supplied Release checklist and production validators for each rebuilt archive. Fresh Papyrus outputs are normalized only in their compiler-owned PEX header metadata and then validated before staging. Independent compiler runs can still renumber internal temporary symbols, so PEX payload byte identity is not a valid semantic gate; the PSC inputs, exact compiler/import set, successful compile, and canonical privacy metadata are the reproducibility evidence. Compiler success and structural plugin validation do not prove game behavior. The 1.0.2 candidate requires final-hash in-game acceptance on all three runtime targets. No runtime claim follows from the dependency matrix alone.

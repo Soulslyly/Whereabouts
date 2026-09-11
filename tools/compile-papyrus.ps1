@@ -96,6 +96,11 @@ foreach ($scriptName in $scriptNames) {
     }
 }
 
+$metadataTool = Join-Path $PSScriptRoot 'normalize-pex-metadata.ps1'
+$compiledPaths = @($scriptNames | ForEach-Object { Join-Path $outputRoot ($_ + '.pex') })
+& $metadataTool -Path $compiledPaths
+& $metadataTool -Path $compiledPaths -ValidateOnly
+
 $outputs = foreach ($scriptName in $scriptNames) {
     $path = Join-Path $outputRoot ($scriptName + '.pex')
     if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {

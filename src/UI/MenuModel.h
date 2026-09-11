@@ -15,6 +15,7 @@
 #include <cstddef>
 #include <cmath>
 #include <format>
+#include <limits>
 #include <optional>
 #include <span>
 #include <string>
@@ -64,6 +65,27 @@ namespace whereabouts::ui
         if (availableWidth >= 1050.0F) return 5;
         if (availableWidth >= 700.0F) return 3;
         if (availableWidth >= 440.0F) return 2;
+        return 1;
+    }
+
+    [[nodiscard]] constexpr int ResponsiveControlColumns(
+        float availableWidth,
+        float minimumColumnWidth,
+        float itemSpacing,
+        int maximumColumns) noexcept
+    {
+        constexpr float infinity = std::numeric_limits<float>::infinity();
+        if (!(availableWidth > 0.0F) || !(availableWidth < infinity) ||
+            !(minimumColumnWidth > 0.0F) || !(minimumColumnWidth < infinity) ||
+            maximumColumns < 2) {
+            return 1;
+        }
+        const float spacing = itemSpacing > 0.0F ? itemSpacing : 0.0F;
+        for (int columns = maximumColumns; columns > 1; --columns) {
+            const float required = minimumColumnWidth * static_cast<float>(columns) +
+                spacing * static_cast<float>(columns - 1);
+            if (availableWidth >= required) return columns;
+        }
         return 1;
     }
 
@@ -471,6 +493,11 @@ namespace whereabouts::ui
             return std::pair{SortKey::Status, ascending};
         }
         return std::nullopt;
+    }
+
+    [[nodiscard]] constexpr bool SortUsesDirection(SortKey key) noexcept
+    {
+        return key != SortKey::Random;
     }
 
     [[nodiscard]] constexpr std::uint64_t NextRandomSeed(std::uint64_t seed) noexcept

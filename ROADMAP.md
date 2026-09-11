@@ -4,11 +4,11 @@ This is the public direction for Whereabouts. It is not a promise that every ide
 
 ## Current Maintenance Release
 
-Version 1.0.1 improves filter clarity and missing-result recovery. It labels every Any/Yes/No status filter, shows the number of active filter categories, ignores surrounding search whitespace, and offers explicit filter-clearing or index-refresh recovery when a submitted search finds nothing visible.
+Version 1.0.2 carries forward the 1.0.1 search-recovery fixes and compacts the responsive Search filters so the controls line up cleanly without consuming as much result space.
 
 ## Planned Next
 
-The next feature update is expected to focus on better ways to narrow NPC results:
+The larger 1.1.0 update is being developed in small, testable phases. Its next player-facing phase focuses on better ways to narrow NPC results:
 
 - Race filtering
 - Sex filtering

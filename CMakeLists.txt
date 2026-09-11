@@ -28,6 +28,8 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 option(WHEREABOUTS_OWNER_VALIDATION "Require exact owner-only dependency evidence" OFF)
 set(WHEREABOUTS_SMF_DLL "" CACHE FILEPATH "Exact installed SKSE Menu Framework DLL for owner validation")
 set(WHEREABOUTS_LEGACY_ADDRESS_LIBRARY "" CACHE FILEPATH "Exact installed Skyrim 1.5.97 Address Library database for owner validation")
+set(WHEREABOUTS_SKYRIM_1170_EXECUTABLE "" CACHE FILEPATH "Exact installed Skyrim 1.6.1170 executable for owner validation")
+set(WHEREABOUTS_SKSE_226_DLL "" CACHE FILEPATH "Exact installed SKSE 2.2.6 runtime DLL for owner validation")
 include(cmake/OwnerValidation.cmake)
 
 if(MSVC)

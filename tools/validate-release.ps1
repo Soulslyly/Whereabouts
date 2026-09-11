@@ -8,20 +8,8 @@ param(
 
 $ErrorActionPreference = "Stop"
 $snapshotRoot = [System.IO.Path]::GetFullPath((Split-Path -Parent $PSScriptRoot)).TrimEnd('\')
-
-function Get-CanonicalVersion {
-    $contractPath = Join-Path $snapshotRoot 'version.json'
-    if (-not (Test-Path -LiteralPath $contractPath -PathType Leaf)) {
-        throw "Canonical version contract is missing: $contractPath"
-    }
-    $contract = Get-Content -LiteralPath $contractPath -Raw | ConvertFrom-Json
-    if ([string]::IsNullOrWhiteSpace($contract.display)) {
-        throw 'Canonical display version is empty.'
-    }
-    [string]$contract.display
-}
-
-$canonicalVersion = Get-CanonicalVersion
+. (Join-Path $PSScriptRoot 'VersionContract.ps1')
+$canonicalVersion = (Get-WhereaboutsVersionContract -ProjectRoot $snapshotRoot).display
 if ([string]::IsNullOrWhiteSpace($Version)) {
     $Version = $canonicalVersion
 }
@@ -130,6 +118,13 @@ function Assert-RuntimeBinaryHygiene([string]$DllPath) {
     }
 }
 
+function Assert-PexMetadata([string]$Root) {
+    $validator = Join-Path $snapshotRoot 'tools/normalize-pex-metadata.ps1'
+    foreach ($pex in Get-ChildItem -LiteralPath (Join-Path $Root 'Scripts') -Filter '*.pex' -File) {
+        & $validator -Path $pex.FullName -ValidateOnly
+    }
+}
+
 if (-not $SourceOnly -and -not (Test-Path -LiteralPath $runtimeStage -PathType Container)) { throw "Runtime stage is missing" }
 if (-not $SourceOnly -and -not (Test-Path -LiteralPath $translationStage -PathType Container)) { throw "Translation stage is missing" }
 if (-not (Test-Path -LiteralPath $sourceStage -PathType Container)) { throw "Source stage is missing" }
@@ -143,6 +138,7 @@ if (-not $SourceOnly) {
         throw "Translation stage does not match the eight-file overwrite allowlist"
     }
     Assert-RuntimeBinaryHygiene (Join-Path $runtimeStage "SKSE/Plugins/Whereabouts.dll")
+    Assert-PexMetadata $runtimeStage
 }
 
 $sourceFiles = Get-RelativeFiles $sourceStage
@@ -182,9 +178,12 @@ $allowedProjectFiles = @(
     "LICENSES/Third-Party-Notices.txt",
     "config/Whereabouts.ini",
     "tools/compile-papyrus.ps1",
+    "tools/normalize-pex-metadata.ps1",
     "tools/generate-translation-resources.ps1",
     "tools/stage-release.ps1",
+    "tools/VersionContract.ps1",
     "tools/validate-release.ps1",
+    "tools/validate-runtime-dependency.ps1",
     "tools/validate-smf-binary.ps1",
     "tools/PluginBuilder/Whereabouts.PluginBuilder.csproj",
     "tools/PluginBuilder/Program.cs",
@@ -259,6 +258,7 @@ $requiredSource = @(
     "docs/TRANSLATING.md",
     "papyrus/Source/WhereaboutsAPI.psc",
     "papyrus/Source/WhereaboutsQuest.psc",
+    "tools/normalize-pex-metadata.ps1",
     "LICENSES/SKSE-Menu-Framework-API.txt",
     "LICENSES/Whereabouts-Permissions.txt",
     "LICENSES/Third-Party-Notices.txt",

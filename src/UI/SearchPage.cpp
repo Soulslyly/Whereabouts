@@ -207,7 +207,18 @@ namespace whereabouts::ui
         const auto filterHeadingId = std::format("{}###WhereaboutsFilters", filterHeading);
         if (ImGuiMCP::CollapsingHeader(filterHeadingId.c_str())) {
             const auto filterWidth = ImGuiMCP::GetContentRegionAvail().x;
-            const bool pairedTextFilters = filterWidth >= 620.0F;
+            const auto* filterStyle = ImGuiMCP::GetStyle();
+            const float filterSpacing = filterStyle ? filterStyle->ItemSpacing.x : 8.0F;
+            const auto measuredControlWidth = [&](const auto& texts) {
+                float width = 180.0F;
+                for (const auto* text : texts) {
+                    width = (std::max)(
+                        width,
+                        ImGuiMCP::CalcTextSize(text).x +
+                            ImGuiMCP::GetFrameHeightWithSpacing());
+                }
+                return width;
+            };
             std::optional<std::size_t> removePluginFilter;
             float pluginRowRemaining = filterWidth;
             for (std::size_t index = 0; index < selectedPluginFilters_.size(); ++index) {
@@ -229,7 +240,24 @@ namespace whereabouts::ui
                     selectedPluginFilters_.begin() + static_cast<std::ptrdiff_t>(*removePluginFilter));
                 searchOptionsChanged = true;
             }
-            if (ImGuiMCP::BeginTable("##TextFilters", pairedTextFilters ? 2 : 1,
+            const std::array contentNames{
+                TranslateText("NPCs only"),
+                TranslateText("NPCs and locations"),
+                TranslateText("Locations only")};
+            int contentIndex = static_cast<int>(searchContent_);
+            const std::array primaryControlText{
+                TranslateText("Plugin contains"), TranslateText("Location contains"),
+                TranslateText("Search content"), TranslateText("Result order"),
+                contentNames[0], contentNames[1], contentNames[2],
+                TranslateText("NPCs first"), TranslateText("Locations first")};
+            const int primaryControlColumns = ResponsiveControlColumns(
+                filterWidth,
+                measuredControlWidth(primaryControlText),
+                filterSpacing,
+                searchContent_ == SearchContent::NpcsAndLocations ? 4 : 3);
+            if (ImGuiMCP::BeginTable(
+                    "##WhereaboutsPrimaryFilters",
+                    primaryControlColumns,
                     ImGuiMCP::ImGuiTableFlags_SizingStretchSame)) {
                 static_cast<void>(ImGuiMCP::TableNextColumn());
                 ImGuiMCP::TextUnformatted(TranslateText("Plugin contains"));
@@ -243,45 +271,42 @@ namespace whereabouts::ui
                 ImGuiMCP::TextUnformatted(TranslateText("Location contains"));
                 ImGuiMCP::SetNextItemWidth(-1.0F);
                 searchOptionsChanged |= ImGuiMCP::InputText("##LocationContains", locationFilter_.data(), locationFilter_.size());
-                ImGuiMCP::EndTable();
-            }
-
-            const std::array contentNames{
-                TranslateText("NPCs only"),
-                TranslateText("NPCs and locations"),
-                TranslateText("Locations only")};
-            int contentIndex = static_cast<int>(searchContent_);
-            ImGuiMCP::SetNextItemWidth(210.0F);
-            if (ImGuiMCP::BeginCombo(
-                    TranslateText("Search content"),
-                    contentNames[std::clamp(contentIndex, 0, 2)])) {
-                for (int index = 0; index < static_cast<int>(contentNames.size()); ++index) {
-                    if (ImGuiMCP::Selectable(contentNames[index], contentIndex == index)) {
-                        searchContent_ = static_cast<SearchContent>(index);
-                        searchOptionsChanged = true;
-                        catalogModeChanged = true;
-                    }
-                }
-                ImGuiMCP::EndCombo();
-            }
-            if (searchContent_ == SearchContent::NpcsAndLocations) {
-                if (pairedTextFilters) ImGuiMCP::SameLine();
-                const std::array orderNames{
-                    TranslateText("NPCs first"), TranslateText("Locations first")};
-                int orderIndex = static_cast<int>(resultSectionOrder_);
-                ImGuiMCP::SetNextItemWidth(180.0F);
+                static_cast<void>(ImGuiMCP::TableNextColumn());
+                ImGuiMCP::TextUnformatted(TranslateText("Search content"));
+                ImGuiMCP::SetNextItemWidth(-1.0F);
                 if (ImGuiMCP::BeginCombo(
-                        TranslateText("Result order"),
-                        orderNames[std::clamp(orderIndex, 0, 1)])) {
-                    for (int index = 0; index < static_cast<int>(orderNames.size()); ++index) {
-                        if (ImGuiMCP::Selectable(orderNames[index], orderIndex == index)) {
-                            resultSectionOrder_ = static_cast<ResultSectionOrder>(index);
+                        "##WhereaboutsSearchContent",
+                        contentNames[std::clamp(contentIndex, 0, 2)])) {
+                    for (int index = 0; index < static_cast<int>(contentNames.size()); ++index) {
+                        if (ImGuiMCP::Selectable(contentNames[index], contentIndex == index)) {
+                            searchContent_ = static_cast<SearchContent>(index);
                             searchOptionsChanged = true;
                             catalogModeChanged = true;
                         }
                     }
                     ImGuiMCP::EndCombo();
                 }
+                if (searchContent_ == SearchContent::NpcsAndLocations) {
+                    static_cast<void>(ImGuiMCP::TableNextColumn());
+                    const std::array orderNames{
+                        TranslateText("NPCs first"), TranslateText("Locations first")};
+                    int orderIndex = static_cast<int>(resultSectionOrder_);
+                    ImGuiMCP::TextUnformatted(TranslateText("Result order"));
+                    ImGuiMCP::SetNextItemWidth(-1.0F);
+                    if (ImGuiMCP::BeginCombo(
+                            "##WhereaboutsResultOrder",
+                            orderNames[std::clamp(orderIndex, 0, 1)])) {
+                        for (int index = 0; index < static_cast<int>(orderNames.size()); ++index) {
+                            if (ImGuiMCP::Selectable(orderNames[index], orderIndex == index)) {
+                                resultSectionOrder_ = static_cast<ResultSectionOrder>(index);
+                                searchOptionsChanged = true;
+                                catalogModeChanged = true;
+                            }
+                        }
+                        ImGuiMCP::EndCombo();
+                    }
+                }
+                ImGuiMCP::EndTable();
             }
 
             if (pluginFilter_.front() != '\0' && !pluginSuggestionsDismissed_) {
@@ -303,7 +328,7 @@ namespace whereabouts::ui
                     const auto pushedColors = PushThemeSafeRowColors();
                     if (ImGuiMCP::BeginChild(
                             "##WhereaboutsPluginSuggestions",
-                            {360.0F, 110.0F},
+                            {0.0F, 110.0F},
                             ImGuiMCP::ImGuiChildFlags_Border)) {
                         if (ImGuiMCP::BeginTable(
                                 "##WhereaboutsPluginSuggestionRows",
@@ -337,12 +362,12 @@ namespace whereabouts::ui
 
             ImGuiMCP::Spacing();
             const std::array stateNames{TranslateText("Any"), TranslateText("Yes"), TranslateText("No")};
-            const auto stateFilter = [&](const char* label, int& value, const char* tooltip) {
+            const auto stateFilter = [&](const char* id, const char* label, int& value, const char* tooltip) {
                 bool changed = false;
                 ImGuiMCP::SetNextItemWidth(-1.0F);
                 const auto stateIndex = std::clamp(value, 0, 2);
                 const auto preview = TriStateFilterPreview(label, stateNames[stateIndex]);
-                if (ImGuiMCP::BeginCombo(label, preview.c_str())) {
+                if (ImGuiMCP::BeginCombo(id, preview.c_str())) {
                     for (int index = 0; index < static_cast<int>(stateNames.size()); ++index) {
                         if (ImGuiMCP::Selectable(stateNames[index], value == index)) {
                             value = index;
@@ -355,35 +380,57 @@ namespace whereabouts::ui
                 return changed;
             };
             ImGuiMCP::BeginDisabled(!IncludesNpcs(searchContent_));
-            const int stateColumns = wideControls ? 5 : 2;
+            const std::array stateLabels{
+                TranslateText("Alive"), TranslateText("Enabled"),
+                TranslateText(kFollowerFilterLabel), TranslateText("Potential Follower"),
+                TranslateText("Loaded")};
+            float stateControlWidth = 180.0F;
+            for (const auto* label : stateLabels) {
+                for (const auto* state : stateNames) {
+                    const auto preview = TriStateFilterPreview(label, state);
+                    stateControlWidth = (std::max)(
+                        stateControlWidth,
+                        ImGuiMCP::CalcTextSize(preview.c_str()).x +
+                            ImGuiMCP::GetFrameHeightWithSpacing());
+                }
+            }
+            const int stateColumns = ResponsiveControlColumns(
+                filterWidth, stateControlWidth, filterSpacing, 5);
             if (ImGuiMCP::BeginTable(
                     "##WhereaboutsStateFilters",
                     stateColumns,
                     ImGuiMCP::ImGuiTableFlags_SizingStretchSame)) {
                 static_cast<void>(ImGuiMCP::TableNextColumn());
                 searchOptionsChanged |= stateFilter(
-                    TranslateText("Alive"), aliveFilter_,
+                    "##WhereaboutsAliveFilter", TranslateText("Alive"), aliveFilter_,
                     TranslateText("Any ignores this status. Yes requires it. No excludes it."));
                 static_cast<void>(ImGuiMCP::TableNextColumn());
                 searchOptionsChanged |= stateFilter(
-                    TranslateText("Enabled"), enabledFilter_,
+                    "##WhereaboutsEnabledFilter", TranslateText("Enabled"), enabledFilter_,
                     TranslateText("Any ignores this status. Yes requires it. No excludes it."));
                 static_cast<void>(ImGuiMCP::TableNextColumn());
                 searchOptionsChanged |= stateFilter(
-                    TranslateText(kFollowerFilterLabel), teammateFilter_,
+                    "##WhereaboutsFollowerFilter", TranslateText(kFollowerFilterLabel), teammateFilter_,
                     TranslateText("Currently following. Any ignores it; Yes requires it; No excludes it."));
                 static_cast<void>(ImGuiMCP::TableNextColumn());
                 searchOptionsChanged |= stateFilter(
-                    TranslateText("Potential Follower"), potentialFollowerFilter_,
+                    "##WhereaboutsPotentialFollowerFilter", TranslateText("Potential Follower"), potentialFollowerFilter_,
                     TranslateText("Potential-follower faction. Any ignores it; Yes requires it; No excludes it."));
                 static_cast<void>(ImGuiMCP::TableNextColumn());
                 searchOptionsChanged |= stateFilter(
-                    TranslateText("Loaded"), loadedFilter_,
+                    "##WhereaboutsLoadedFilter", TranslateText("Loaded"), loadedFilter_,
                     TranslateText("Any ignores this status. Yes requires it. No excludes it."));
                 ImGuiMCP::EndTable();
             }
 
-            const int contextColumns = wideControls ? 4 : 2;
+            const std::array contextLabels{
+                TranslateText("Favorites only"), TranslateText("Tracked only"),
+                TranslateText("Same location"), TranslateText("Include Generic NPCs")};
+            const int contextColumns = ResponsiveControlColumns(
+                filterWidth,
+                measuredControlWidth(contextLabels),
+                filterSpacing,
+                4);
             if (ImGuiMCP::BeginTable(
                     "##WhereaboutsContextFilters",
                     contextColumns,
@@ -418,14 +465,37 @@ namespace whereabouts::ui
             if (!includeGeneric_) {
                 genericOnly_ = false;
             }
+            ImGuiMCP::EndDisabled();
 
             ImGuiMCP::Spacing();
             const std::array sortNames{
                 TranslateText("Name"), TranslateText("Plugin"), TranslateText("Level"),
                 TranslateText("NPC location"), TranslateText("Loaded"), TranslateText("Distance"),
                 TranslateText("Status"), TranslateText("Random")};
-            ImGuiMCP::SetNextItemWidth(180.0F);
-            if (ImGuiMCP::BeginCombo(TranslateText("Sort by"), sortNames[std::clamp(sortIndex_, 0, 7)])) {
+            const std::array directionNames{
+                TranslateText("Descending"), TranslateText("Ascending")};
+            const std::array sortControlText{
+                TranslateText("Sort by"), TranslateText("Direction"),
+                TranslateText("Clear Filters"),
+                sortNames[0], sortNames[1], sortNames[2], sortNames[3],
+                sortNames[4], sortNames[5], sortNames[6], sortNames[7],
+                directionNames[0], directionNames[1], TranslateText("Not used")};
+            const int sortControlColumns = ResponsiveControlColumns(
+                filterWidth,
+                measuredControlWidth(sortControlText),
+                filterSpacing,
+                3);
+            if (ImGuiMCP::BeginTable(
+                    "##WhereaboutsSortAndActions",
+                    sortControlColumns,
+                    ImGuiMCP::ImGuiTableFlags_SizingStretchSame)) {
+                ImGuiMCP::BeginDisabled(!IncludesNpcs(searchContent_));
+                static_cast<void>(ImGuiMCP::TableNextColumn());
+                ImGuiMCP::TextUnformatted(TranslateText("Sort by"));
+                ImGuiMCP::SetNextItemWidth(-1.0F);
+                if (ImGuiMCP::BeginCombo(
+                        "##WhereaboutsSortKey",
+                        sortNames[std::clamp(sortIndex_, 0, 7)])) {
                     for (int index = 0; index < static_cast<int>(sortNames.size()); ++index) {
                         if (ImGuiMCP::Selectable(sortNames[index], sortIndex_ == index)) {
                             sortIndex_ = index;
@@ -435,20 +505,42 @@ namespace whereabouts::ui
                             searchSortUiDirty_ = true;
                             searchOptionsChanged = true;
                         }
+                    }
+                    ImGuiMCP::EndCombo();
                 }
-                ImGuiMCP::EndCombo();
-            }
-            if (wideControls) ImGuiMCP::SameLine();
-            if (ImGuiMCP::Checkbox(TranslateText("Ascending"), &ascending_)) {
-                searchSortUiDirty_ = true;
-                searchOptionsChanged = true;
-            }
-            ImGuiMCP::EndDisabled();
-            if (wideControls) ImGuiMCP::SameLine();
-            if (ImGuiMCP::Button(TranslateText("Clear Filters"))) {
-                ResetFiltersToDefaults();
-                searchOptionsChanged = true;
-                catalogModeChanged = true;
+                static_cast<void>(ImGuiMCP::TableNextColumn());
+                ImGuiMCP::TextUnformatted(TranslateText("Direction"));
+                const auto selectedSort = static_cast<SortKey>(std::clamp(sortIndex_, 0, 7));
+                const bool usesDirection = SortUsesDirection(selectedSort);
+                if (!usesDirection) {
+                    DelayedTooltip(TranslateText("Random order does not use a direction."));
+                }
+                ImGuiMCP::BeginDisabled(!SortUsesDirection(selectedSort));
+                ImGuiMCP::SetNextItemWidth(-1.0F);
+                const auto* directionPreview = usesDirection ?
+                    directionNames[ascending_ ? 1 : 0] : TranslateText("Not used");
+                if (ImGuiMCP::BeginCombo(
+                        "##WhereaboutsSortDirection", directionPreview)) {
+                    for (int index = 0; index < static_cast<int>(directionNames.size()); ++index) {
+                        if (ImGuiMCP::Selectable(directionNames[index], ascending_ == (index == 1))) {
+                            ascending_ = index == 1;
+                            searchSortUiDirty_ = true;
+                            searchOptionsChanged = true;
+                        }
+                    }
+                    ImGuiMCP::EndCombo();
+                }
+                ImGuiMCP::EndDisabled();
+                ImGuiMCP::EndDisabled();
+                static_cast<void>(ImGuiMCP::TableNextColumn());
+                ImGuiMCP::TextUnformatted(" ");
+                if (ImGuiMCP::Button(
+                        TranslateText("Clear Filters"), {-1.0F, 0.0F})) {
+                    ResetFiltersToDefaults();
+                    searchOptionsChanged = true;
+                    catalogModeChanged = true;
+                }
+                ImGuiMCP::EndTable();
             }
         }
 

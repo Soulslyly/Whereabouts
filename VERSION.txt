@@ -1,6 +1,8 @@
-Whereabouts 1.0.1
-Status: maintenance candidate; Skyrim acceptance pending
-Parent: Whereabouts 1.0.0+publish.1
+Whereabouts 1.0.2
+Status: compact-filter maintenance release tool-validated; Skyrim layout acceptance pending
+Parent: Whereabouts 1.0.1
+Implementation parent: Whereabouts 1.1.0-beta.3
+Public release predecessor: Whereabouts 1.0.1
 Created: 2026-09-10
 Runtime development target: Skyrim 1.6.1170
 Runtime targets: Skyrim 1.5.97, 1.6.1170, and 1.7.104

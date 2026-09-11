@@ -1,5 +1,36 @@
 # Changelog
 
+## 1.0.2 - Compact filter maintenance release
+
+- Compact the Search filter panel around consistent responsive rows so more results remain visible.
+- Keep Plugin, Location, and Search Content controls together; keep Sort, Direction, and Clear Filters together.
+- Preserve all filtering semantics, saves, settings, commands, tracking, Papyrus, ESP records, translations, and runtime support.
+- Carry forward the beta.2 and beta.3 dependency, archive, and Papyrus privacy hardening.
+
+## 1.1.0-beta.3 - Release audit hardening
+
+- Remove private compiler identity and nondeterministic header metadata from packaged Papyrus PEX files.
+- Make owner-only dependency configuration reject existing but incorrect Skyrim, SKSE, and SMF binaries.
+- Require active compatibility documents to pair Skyrim 1.6.1170 with SKSE 2.2.6 explicitly.
+- Preserve all runtime behavior, saves, settings, commands, tracking, UI, translations, Papyrus source, and ESP records.
+
+## 1.1.0-beta.2 - Release-foundation audit corrections
+
+- Correct the documented Skyrim 1.6.1170 dependency to the exact installed SKSE 2.2.6 runtime.
+- Make the canonical version contract name its exact preserved parent and reject malformed Semantic Version prerelease identifiers.
+- Add an exact installed-runtime dependency validator without changing the DLL, ESP, Papyrus, saves, commands, tracking, or interface behavior.
+- Preserve phase 2 demographic filters until beta.1's responsive layout passes its Skyrim checkpoint.
+
+## 1.1.0-beta.1 - Responsive UI and translation foundation
+
+- Make Search filter groups choose columns from available width and measured translated text.
+- Align Plugin and Location fields in wide layouts and stack them cleanly in narrow layouts.
+- Let plugin suggestions use the available filter-panel width.
+- Replace the Ascending checkbox with an explicit Direction choice and disable it for Random sorting.
+- Preserve search behavior, header sorting, saves, commands, tracking, Papyrus/API, ESP, dependencies, and runtime support.
+
+Skyrim acceptance is still required for visual fit, theme behavior, translated labels, and sort-control interaction.
+
 ## 1.0.1 - Search clarity and recovery
 
 - Keep the Filters and sorting section open when its active-filter count changes.

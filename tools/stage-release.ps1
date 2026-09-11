@@ -8,20 +8,8 @@ param(
 
 $ErrorActionPreference = "Stop"
 $snapshotRoot = [System.IO.Path]::GetFullPath((Split-Path -Parent $PSScriptRoot)).TrimEnd('\')
-
-function Get-CanonicalVersion {
-    $contractPath = Join-Path $snapshotRoot 'version.json'
-    if (-not (Test-Path -LiteralPath $contractPath -PathType Leaf)) {
-        throw "Canonical version contract is missing: $contractPath"
-    }
-    $contract = Get-Content -LiteralPath $contractPath -Raw | ConvertFrom-Json
-    if ([string]::IsNullOrWhiteSpace($contract.display)) {
-        throw 'Canonical display version is empty.'
-    }
-    [string]$contract.display
-}
-
-$canonicalVersion = Get-CanonicalVersion
+. (Join-Path $PSScriptRoot 'VersionContract.ps1')
+$canonicalVersion = (Get-WhereaboutsVersionContract -ProjectRoot $snapshotRoot).display
 if ([string]::IsNullOrWhiteSpace($Version)) {
     $Version = $canonicalVersion
 }
@@ -153,9 +141,12 @@ $sourceFiles = @(
     "LICENSES/Third-Party-Notices.txt",
     "config/Whereabouts.ini",
     "tools/compile-papyrus.ps1",
+    "tools/normalize-pex-metadata.ps1",
     "tools/generate-translation-resources.ps1",
     "tools/stage-release.ps1",
+    "tools/VersionContract.ps1",
     "tools/validate-release.ps1",
+    "tools/validate-runtime-dependency.ps1",
     "tools/validate-smf-binary.ps1",
     "tools/PluginBuilder/Whereabouts.PluginBuilder.csproj",
     "tools/PluginBuilder/Program.cs",

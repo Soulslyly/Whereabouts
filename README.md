@@ -74,7 +74,7 @@ UIExtensions, MCM Helper, SkyUI MCM, and PapyrusUtil are not required.
 
 ## Installation
 
-Install `Whereabouts-1.0.0-Main.zip` with your mod manager and enable `Whereabouts.esp`. Open SKSE Menu Framework and choose Whereabouts.
+Install `Whereabouts-1.0.2-Main.zip` with your mod manager and enable `Whereabouts.esp`. Open SKSE Menu Framework and choose Whereabouts.
 
 The optional Translations archive contains machine-translated starting points for every non-English language supported by Skyrim. It is not required for English users.
 
