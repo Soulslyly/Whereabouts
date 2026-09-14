@@ -1,9 +1,9 @@
-Whereabouts 1.0.2
-Status: compact-filter maintenance release tool-validated; Skyrim layout acceptance pending
-Parent: Whereabouts 1.0.1
-Implementation parent: Whereabouts 1.1.0-beta.3
-Public release predecessor: Whereabouts 1.0.1
-Created: 2026-09-10
+Whereabouts 1.1.0
+Parent: Whereabouts 1.1.0-rc.10
+Status: Final release candidate with scrollable saved-list pages; Skyrim acceptance pending
+Source baseline: Whereabouts 1.0.2+layout.5
+Public release predecessor: Nexus 1.0.3 (packaging-only reupload of 1.0.2)
+Created: 2026-09-13
 Runtime development target: Skyrim 1.6.1170
 Runtime targets: Skyrim 1.5.97, 1.6.1170, and 1.7.104
 CommonLibSSE-NG: v7.2.0 (7a60f4de794095d7b0f8928d1b930a52e9a7da83)

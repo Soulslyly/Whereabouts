@@ -24,6 +24,7 @@ namespace whereabouts
         std::optional<std::string> plugin;
         std::vector<std::string> selectedPlugins;
         std::optional<std::string> context;
+        bool contextExact{false};
         LocationSortKey sort{LocationSortKey::Name};
         bool ascending{true};
         std::size_t limit{10};

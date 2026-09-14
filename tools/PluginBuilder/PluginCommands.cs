@@ -53,6 +53,7 @@ internal static class PluginCommands
         };
         stage.LogEntries.Add(new QuestLogEntry
         {
+            Flags = 0,
             Entry = new TranslatedString(Language.English, "Find your tracked NPCs using their map markers. Manage tracking in the Whereabouts menu.")
         });
         quest.Stages.Add(stage);
@@ -152,6 +153,7 @@ internal static class PluginCommands
         Check(quest.Stages.Count == 1 && quest.Stages[0].Index == 0 &&
               (quest.Stages[0].Flags & QuestStage.Flag.StartUpStage) != 0 &&
               quest.Stages[0].LogEntries.Count == 1 &&
+              quest.Stages[0].LogEntries[0].Flags.HasValue &&
               !string.IsNullOrWhiteSpace(quest.Stages[0].LogEntries[0].Entry?.String),
             "quest startup stage must retain its journal description", errors);
 

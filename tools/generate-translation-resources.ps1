@@ -81,4 +81,6 @@ foreach ($language in @('ENGLISH','FRENCH','ITALIAN','GERMAN','SPANISH','POLISH'
     [System.IO.File]::WriteAllText($machinePath, (($machineLines -join "`r`n") + "`r`n"), [System.Text.UnicodeEncoding]::new($false, $true))
 }
 
+& (Join-Path $PSScriptRoot 'generate-translator-worksheet.ps1') -ProjectRoot $ProjectRoot
+
 Write-Output "Generated $($entries.Count) keys for 9 fallback and 8 optional translation files."

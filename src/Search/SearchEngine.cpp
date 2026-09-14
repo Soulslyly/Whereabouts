@@ -183,11 +183,30 @@ namespace whereabouts
                 });
         }
 
+        [[nodiscard]] bool MatchesKnownBoolean(
+            bool value,
+            bool known,
+            KnownBooleanFilter filter) noexcept
+        {
+            switch (filter) {
+            case KnownBooleanFilter::Any:
+                return true;
+            case KnownBooleanFilter::Yes:
+                return known && value;
+            case KnownBooleanFilter::No:
+                return known && !value;
+            case KnownBooleanFilter::Unknown:
+                return !known;
+            }
+            return false;
+        }
+
         [[nodiscard]] bool MatchesFilters(
             const NpcSnapshot& npc,
             const SearchQuery& query,
             std::string_view pluginFilter,
-            std::string_view locationFilter)
+            std::string_view locationFilter,
+            std::string_view raceFilter)
         {
             const auto& filters = query.filters;
             if (!filters.includeGeneric && !npc.IsUniqueBase()) {
@@ -228,8 +247,67 @@ namespace whereabouts
             if (filters.loaded && npc.loaded != *filters.loaded) {
                 return false;
             }
-            if (filters.location && !npc.searchKeys.location.contains(locationFilter)) {
+            if (filters.location) {
+                if (filters.locationExact) {
+                    const auto matchesExactLocation =
+                        SearchTextEqualsNoexcept(npc.spatial.location, *filters.location) ||
+                        SearchTextEqualsNoexcept(npc.spatial.cell, *filters.location) ||
+                        SearchTextEqualsNoexcept(npc.spatial.worldspace, *filters.location);
+                    if (!matchesExactLocation) return false;
+                } else if (!npc.searchKeys.location.contains(locationFilter)) {
+                    return false;
+                }
+            }
+            if (filters.unknownRaceOnly) {
+                if (!npc.searchKeys.race.empty()) return false;
+            } else if (filters.race && npc.searchKeys.race != raceFilter) {
                 return false;
+            }
+            if (filters.sex && npc.sex != *filters.sex) {
+                return false;
+            }
+            if (!MatchesKnownBoolean(
+                    npc.essential, npc.actorFlagsKnown, filters.essential)) {
+                return false;
+            }
+            if (!MatchesKnownBoolean(
+                    npc.protectedActor, npc.actorFlagsKnown, filters.protectedActor)) {
+                return false;
+            }
+            if (filters.spatialKind && npc.spatial.kind != *filters.spatialKind) {
+                return false;
+            }
+            if (filters.spatialFreshness &&
+                npc.spatial.freshness != *filters.spatialFreshness) {
+                return false;
+            }
+            if (filters.unknownWorldspaceOnly) {
+                if (npc.spatial.worldspaceFormID != 0) return false;
+            } else if (filters.worldspaceFormID &&
+                       npc.spatial.worldspaceFormID != *filters.worldspaceFormID) {
+                return false;
+            }
+            if (filters.unknownFactionsOnly) {
+                if (npc.recordProjection && npc.recordProjection->factionsKnown) return false;
+            } else if (filters.faction) {
+                if (!npc.recordProjection || !npc.recordProjection->factionsKnown ||
+                    !MatchesRecordFacet(
+                        *npc.recordProjection,
+                        RecordFacetCategory::Faction,
+                        filters.faction->runtimeFormID)) {
+                    return false;
+                }
+            }
+            if (filters.unknownBaseKeywordsOnly) {
+                if (npc.recordProjection && npc.recordProjection->keywordsKnown) return false;
+            } else if (filters.baseKeyword) {
+                if (!npc.recordProjection || !npc.recordProjection->keywordsKnown ||
+                    !MatchesRecordFacet(
+                        *npc.recordProjection,
+                        RecordFacetCategory::Keyword,
+                        filters.baseKeyword->runtimeFormID)) {
+                    return false;
+                }
             }
             if (filters.favoritesOnly && !IsFavorite(npc, query)) {
                 return false;
@@ -314,6 +392,8 @@ namespace whereabouts
             FoldTextForSearch(*query.filters.plugin) : std::string{};
         const auto foldedLocationFilter = query.filters.location ?
             FoldTextForSearch(*query.filters.location) : std::string{};
+        const auto foldedRaceFilter = query.filters.race ?
+            FoldTextForSearch(*query.filters.race) : std::string{};
         ParsedSearchText parsed{.kind = SearchTextKind::Name, .name = query.text};
         const auto parsedText = ParseSearchText(query.text);
         if (!parsedText) return SearchError{parsedText.error().message};
@@ -352,7 +432,7 @@ namespace whereabouts
             }
             if (textMatches) ++textMatchTotal;
             if (textMatches && MatchesFilters(
-                    npc, query, foldedPluginFilter, foldedLocationFilter)) {
+                    npc, query, foldedPluginFilter, foldedLocationFilter, foldedRaceFilter)) {
                 matches.push_back(index);
             }
         }

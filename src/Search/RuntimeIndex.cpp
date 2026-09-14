@@ -13,6 +13,8 @@
 #include <expected>
 #include <string_view>
 #include <mutex>
+#include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #ifdef GetObject
@@ -82,6 +84,13 @@ namespace whereabouts
                                       actor.GetParentCell() == player->GetParentCell();
             if (!sameExterior && !sameInterior) return std::nullopt;
             return actor.GetPosition().GetDistance(player->GetPosition());
+        }
+
+        [[nodiscard]] bool HasSpatialEvidence(const SpatialSnapshot& spatial) noexcept
+        {
+            return !spatial.location.empty() || !spatial.cell.empty() ||
+                !spatial.worldspace.empty() || spatial.locationFormID != 0 ||
+                spatial.cellFormID != 0 || spatial.worldspaceFormID != 0;
         }
 
         SpatialSnapshot CaptureSpatial(RE::Actor& actor)
@@ -178,7 +187,8 @@ namespace whereabouts
                     cell != nullptr && cell == playerCell) :
                 MovementBoundary::Unknown;
             spatial.distance = DistanceFromPlayer(actor);
-            spatial.freshness = SpatialFreshness::Current;
+            spatial.freshness = ClassifySpatialFreshness(
+                HasSpatialEvidence(spatial), actor.Is3DLoaded());
             return spatial;
         }
 
@@ -189,6 +199,7 @@ namespace whereabouts
                 snapshot.referenceEditorID + " " + snapshot.baseEditorID);
             snapshot.searchKeys.plugin = FoldTextForSearch(snapshot.SourcePlugin());
             snapshot.searchKeys.location = FoldTextForSearch(SearchableSpatialText(snapshot.spatial));
+            snapshot.searchKeys.race = FoldTextForSearch(snapshot.race);
         }
 
         class FullBuildTimer
@@ -223,10 +234,137 @@ namespace whereabouts
             for (const auto& [editorID, form] : *forms) {
                 if (!form) continue;
                 const auto type = form->GetFormType();
-                if (type != RE::FormType::ActorCharacter && type != RE::FormType::NPC) continue;
+                if (type != RE::FormType::ActorCharacter && type != RE::FormType::NPC &&
+                    type != RE::FormType::Faction && type != RE::FormType::Keyword) {
+                    continue;
+                }
                 result.Observe(form->GetFormID(), editorID.data());
             }
             return result;
+        }
+
+        [[nodiscard]] RE::ACTOR_BASE_DATA::TEMPLATE_USE_FLAG TemplateFlag(
+            TemplateDataCategory category) noexcept
+        {
+            switch (category) {
+            case TemplateDataCategory::Traits:
+                return RE::ACTOR_BASE_DATA::TEMPLATE_USE_FLAG::kTraits;
+            case TemplateDataCategory::Factions:
+                return RE::ACTOR_BASE_DATA::TEMPLATE_USE_FLAG::kFactions;
+            case TemplateDataCategory::BaseData:
+                return RE::ACTOR_BASE_DATA::TEMPLATE_USE_FLAG::kBaseData;
+            case TemplateDataCategory::Keywords:
+                return RE::ACTOR_BASE_DATA::TEMPLATE_USE_FLAG::kKeywords;
+            }
+            return RE::ACTOR_BASE_DATA::TEMPLATE_USE_FLAG::kNone;
+        }
+
+        [[nodiscard]] TemplateOwnerResult<RE::TESNPC> ResolveNpcTemplateOwner(
+            const RE::TESNPC* base,
+            TemplateDataCategory category)
+        {
+            return ResolveTemplateOwner(
+                base,
+                category,
+                [](const RE::TESNPC& npc) { return npc.GetFormID(); },
+                [](const RE::TESNPC& npc, TemplateDataCategory requested) {
+                    return npc.actorData.templateUseFlags.any(TemplateFlag(requested));
+                },
+                [](const RE::TESNPC& npc) {
+                    const auto* form = npc.baseTemplateForm;
+                    return TemplateLink<RE::TESNPC>{
+                        form ? form->As<RE::TESNPC>() : nullptr,
+                        form != nullptr};
+                });
+        }
+
+        [[nodiscard]] RecordFacet CaptureRecordFacet(
+            const RE::TESForm* form,
+            std::string displayName,
+            const EditorIdLookup& editorIds)
+        {
+            RecordFacet facet;
+            if (!form) return facet;
+            facet.runtimeFormID = form->GetFormID();
+            if (const auto identity = TryGetFormIdentity(form)) facet.identity = *identity;
+            facet.editorID = editorIds.Find(facet.runtimeFormID);
+            if (facet.editorID.empty()) facet.editorID = CopyEditorID(form);
+            facet.label = !displayName.empty() ? std::move(displayName) : facet.editorID;
+            if (facet.label.empty()) facet.label = std::format("{:08X}", facet.runtimeFormID);
+            facet.searchText = FoldTextForSearch(
+                facet.label + " " + facet.editorID + " " + facet.identity.plugin);
+            return facet;
+        }
+
+        [[nodiscard]] NpcRecordProjection CaptureRecordProjection(
+            const RE::TESNPC* base,
+            const EditorIdLookup& editorIds)
+        {
+            NpcRecordProjection projection;
+            if (!base) return projection;
+
+            const auto baseData = ResolveNpcTemplateOwner(base, TemplateDataCategory::BaseData);
+            if (baseData.state == TemplateResolutionState::Known && baseData.owner) {
+                projection.actorFlags = {
+                    .known = true,
+                    .essential = baseData.owner->IsEssential(),
+                    .protectedActor = baseData.owner->IsProtected()};
+            }
+
+            const auto traits = ResolveNpcTemplateOwner(base, TemplateDataCategory::Traits);
+            if (traits.state == TemplateResolutionState::Known && traits.owner) {
+                projection.traitsKnown = true;
+                projection.race = CopyFormName(traits.owner->race);
+                switch (traits.owner->GetSex()) {
+                case RE::SEX::kMale:
+                    projection.sex = NpcSex::Male;
+                    break;
+                case RE::SEX::kFemale:
+                    projection.sex = NpcSex::Female;
+                    break;
+                default:
+                    projection.sex = NpcSex::Unknown;
+                    break;
+                }
+            }
+
+            const auto factions = ResolveNpcTemplateOwner(base, TemplateDataCategory::Factions);
+            if (factions.state == TemplateResolutionState::Known && factions.owner) {
+                projection.factionsKnown = true;
+                std::unordered_set<std::uint32_t> observed;
+                for (const auto& member : factions.owner->factions) {
+                    if (!member.faction || member.rank < 0) continue;
+                    const auto id = member.faction->GetFormID();
+                    if (id == 0 || !observed.insert(id).second) continue;
+                    if (projection.factions.size() == kMaximumRecordFacetsPerCategory) {
+                        projection.factionsKnown = false;
+                        projection.factions.clear();
+                        break;
+                    }
+                    projection.factions.push_back(CaptureRecordFacet(
+                        member.faction, CopyFormName(member.faction), editorIds));
+                }
+            }
+
+            const auto keywords = ResolveNpcTemplateOwner(base, TemplateDataCategory::Keywords);
+            if (keywords.state == TemplateResolutionState::Known && keywords.owner) {
+                projection.keywordsKnown = true;
+                std::unordered_set<std::uint32_t> observed;
+                for (const auto* keyword : keywords.owner->GetKeywords()) {
+                    if (!keyword) continue;
+                    const auto id = keyword->GetFormID();
+                    if (id == 0 || !observed.insert(id).second) continue;
+                    if (projection.keywords.size() == kMaximumRecordFacetsPerCategory) {
+                        projection.keywordsKnown = false;
+                        projection.keywords.clear();
+                        break;
+                    }
+                    projection.keywords.push_back(CaptureRecordFacet(
+                        keyword, {}, editorIds));
+                }
+            }
+
+            return projection;
         }
 
         std::expected<std::vector<NpcSnapshot>, IndexFailure> CaptureGameCatalog(
@@ -248,6 +386,9 @@ namespace whereabouts
 
             std::vector<NpcSnapshot> rebuilt;
             rebuilt.reserve(candidateIDs.size());
+            std::unordered_map<
+                std::uint32_t,
+                std::shared_ptr<const NpcRecordProjection>> recordProjectionCache;
             for (const auto formID : candidateIDs) {
                 auto* actor = RE::TESForm::LookupByID<RE::Actor>(formID);
                 if (!IsSearchableActor(actor)) continue;
@@ -271,6 +412,12 @@ namespace whereabouts
                 }
                 snapshot.referenceEditorID = editorIds.Find(snapshot.identity.reference.runtimeFormID);
                 snapshot.baseEditorID = editorIds.Find(snapshot.identity.base.runtimeFormID);
+                if (const auto* base = actor->GetActorBase()) {
+                    snapshot.recordProjection = GetOrCreateRecordProjection(
+                        recordProjectionCache,
+                        base->GetFormID(),
+                        [&] { return CaptureRecordProjection(base, editorIds); });
+                }
                 index.RefreshDynamic(snapshot);
                 rebuilt.push_back(std::move(snapshot));
             }
@@ -633,22 +780,26 @@ namespace whereabouts
             snapshot.potentialFollower = false;
             snapshot.loaded = false;
             snapshot.available = false;
-            snapshot.essential = false;
-            snapshot.protectedActor = false;
+            const auto flags = SelectActorFlagObservation(
+                {}, snapshot.recordProjection ? snapshot.recordProjection->actorFlags : ActorFlagObservation{});
+            snapshot.actorFlagsKnown = flags.known;
+            snapshot.essential = flags.essential;
+            snapshot.protectedActor = flags.protectedActor;
             snapshot.health = 0.0F;
             snapshot.magicka = 0.0F;
             snapshot.stamina = 0.0F;
-            snapshot.race.clear();
-            snapshot.sex.clear();
-            snapshot.spatial.freshness =
-                snapshot.spatial.location.empty() && snapshot.spatial.cell.empty() &&
-                    snapshot.spatial.worldspace.empty() ?
-                SpatialFreshness::Unavailable : SpatialFreshness::LastObserved;
+            snapshot.race = snapshot.recordProjection && snapshot.recordProjection->traitsKnown ?
+                snapshot.recordProjection->race : std::string{};
+            snapshot.sex = snapshot.recordProjection && snapshot.recordProjection->traitsKnown ?
+                snapshot.recordProjection->sex : NpcSex::Unknown;
+            snapshot.spatial.freshness = ClassifySpatialFreshness(
+                HasSpatialEvidence(snapshot.spatial), false);
             snapshot.spatial.sameCell = false;
             snapshot.spatial.sameLocation = false;
             snapshot.spatial.sameWorldspace = false;
             snapshot.spatial.movementBoundary = MovementBoundary::Unknown;
             snapshot.spatial.distance.reset();
+            RefreshSearchKeys(snapshot);
             return;
         }
 
@@ -663,8 +814,15 @@ namespace whereabouts
             actor->IsInFaction(potentialFollowerFaction);
         snapshot.loaded = actor->Is3DLoaded();
         snapshot.available = true;
-        snapshot.essential = actor->IsEssential();
-        snapshot.protectedActor = actor->IsProtected();
+        const auto flags = SelectActorFlagObservation(
+            ActorFlagObservation{
+                .known = snapshot.loaded,
+                .essential = snapshot.loaded && actor->IsEssential(),
+                .protectedActor = snapshot.loaded && actor->IsProtected()},
+            snapshot.recordProjection ? snapshot.recordProjection->actorFlags : ActorFlagObservation{});
+        snapshot.actorFlagsKnown = flags.known;
+        snapshot.essential = flags.essential;
+        snapshot.protectedActor = flags.protectedActor;
         if (auto* values = actor->AsActorValueOwner()) {
             snapshot.health = values->GetActorValue(RE::ActorValue::kHealth);
             snapshot.magicka = values->GetActorValue(RE::ActorValue::kMagicka);
@@ -676,15 +834,32 @@ namespace whereabouts
         }
         snapshot.spatial = CaptureSpatial(*actor);
         snapshot.race = CopyFormName(actor->GetRace());
+        if (snapshot.race.empty() && snapshot.recordProjection &&
+            snapshot.recordProjection->traitsKnown) {
+            snapshot.race = snapshot.recordProjection->race;
+        }
         if (const auto* base = actor->GetActorBase()) {
             if (auto editorID = CopyEditorID(base); !editorID.empty()) {
                 snapshot.baseEditorID = std::move(editorID);
             }
-            const auto sex = base->GetSex();
-            snapshot.sex = sex == RE::SEX::kFemale ? "Female" :
-                           sex == RE::SEX::kMale ? "Male" : "Unknown";
+            if (snapshot.recordProjection && snapshot.recordProjection->traitsKnown) {
+                snapshot.sex = snapshot.recordProjection->sex;
+            } else {
+                const auto sex = base->GetSex();
+                switch (sex) {
+                case RE::SEX::kMale:
+                    snapshot.sex = NpcSex::Male;
+                    break;
+                case RE::SEX::kFemale:
+                    snapshot.sex = NpcSex::Female;
+                    break;
+                default:
+                    snapshot.sex = NpcSex::Unknown;
+                    break;
+                }
+            }
         } else {
-            snapshot.sex = "Unknown";
+            snapshot.sex = NpcSex::Unknown;
         }
         RefreshSearchKeys(snapshot);
     }

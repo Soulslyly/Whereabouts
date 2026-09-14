@@ -7,6 +7,14 @@
 
 namespace whereabouts
 {
+    [[nodiscard]] constexpr SpatialFreshness ClassifySpatialFreshness(
+        bool hasSpatialEvidence,
+        bool actorLoaded) noexcept
+    {
+        if (!hasSpatialEvidence) return SpatialFreshness::Unavailable;
+        return actorLoaded ? SpatialFreshness::Current : SpatialFreshness::LastObserved;
+    }
+
     [[nodiscard]] std::string PrimarySpatialLabel(const SpatialSnapshot& spatial);
     [[nodiscard]] std::string SecondaryWorldspaceLabel(const SpatialSnapshot& spatial);
     [[nodiscard]] std::string SearchableSpatialText(const SpatialSnapshot& spatial);

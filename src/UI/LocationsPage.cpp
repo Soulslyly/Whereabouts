@@ -100,9 +100,13 @@ namespace whereabouts::ui
                 "{} shown / {} matches", locationResults_.size(), locationResultTotal_);
             ImGuiMCP::TextUnformatted(summary.c_str());
             ImGuiMCP::Separator();
-            const float footerReserve = ImGuiMCP::GetFrameHeightWithSpacing() * 1.35F;
-            bool moreRowsBelow = false;
-            if (ImGuiMCP::BeginChild("##WhereaboutsLocationRows", {0.0F, -footerReserve})) {
+            const auto footer = SelectResultFooter(
+                locationSearchRefreshState_.Current(),
+                locationResults_.size(),
+                locationResultTotal_);
+            const float resultRowsHeight = footer == ResultFooter::None ? 0.0F :
+                -ImGuiMCP::GetFrameHeightWithSpacing() * 1.35F;
+            if (ImGuiMCP::BeginChild("##WhereaboutsLocationRows", {0.0F, resultRowsHeight})) {
                 const auto pushedColors = PushThemeSafeRowColors();
                 if (ImGuiMCP::BeginTable(
                         "##WhereaboutsLocationTable",
@@ -214,18 +218,12 @@ namespace whereabouts::ui
                     ImGuiMCP::EndTable();
                 }
                 if (pushedColors > 0) ImGuiMCP::PopStyleColor(pushedColors);
-                moreRowsBelow = ImGuiMCP::GetScrollY() + 1.0F < ImGuiMCP::GetScrollMaxY();
             }
             ImGuiMCP::EndChild();
 
-            const auto footer = SelectResultFooter(
-                locationSearchRefreshState_.Current(),
-                locationResults_.size(),
-                locationResultTotal_,
-                moreRowsBelow);
             if (footer == ResultFooter::ExpandPreview) {
                 const auto labelMore = TranslateFormat(
-                    "Show {} more - click or press Enter",
+                    "Show {} more - click",
                     RemainingResultCount(locationResults_.size(), locationResultTotal_));
                 if (ImGuiMCP::Button(labelMore.c_str(), {-1.0F, 0.0F})) {
                     RunLocationSearch(SearchRun::Submitted);

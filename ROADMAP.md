@@ -2,21 +2,13 @@
 
 This is the public direction for Whereabouts. It is not a promise that every idea will ship, and there are no release dates until an update is actually ready.
 
-## Current Maintenance Release
+## Current Release
 
-Version 1.0.2 carries forward the 1.0.1 search-recovery fixes and compacts the responsive Search filters so the controls line up cleanly without consuming as much result space.
+Version 1.1.0 adds template-aware Essential and Protected filtering, compact common and Advanced filter sections, searchable Plugin/Faction/Base Keyword pickers, hybrid Location filtering, Super Compact rows, redesigned Selected NPC details, and searchable paginated Recent/Favorites/Tracked lists.
 
 ## Planned Next
 
-The larger 1.1.0 update is being developed in small, testable phases. Its next player-facing phase focuses on better ways to narrow NPC results:
-
-- Race filtering
-- Sex filtering
-- Essential/protected filtering
-- Interior/exterior filtering
-- Worldspace filtering
-
-The goal is to add these without turning the Search page into a wall of controls. Exact layout and combinations still need in-game UI testing.
+The next maintenance work will be driven by concrete reports from the 1.1.0 release. Priority goes to reproducible runtime compatibility, translation, layout, and saved-list usability issues rather than adding another large feature set immediately.
 
 ## Investigating
 
@@ -31,7 +23,7 @@ These are useful ideas, but they need a safe and compatible implementation befor
 
 Larger suggestions stay here until their usefulness and technical cost are clear. An idea appearing here does not mean it has been accepted for a release.
 
-- Additional NPC metadata and filters that remain readable in both compact and detailed layouts
+- Additional NPC metadata and filters that remain readable in Detailed, Compact, and Super Compact layouts
 - More ways to use Whereabouts information from other mods without giving external mods unsafe control over actors
 - Quality-of-life improvements suggested through Nexus or [GitHub Issues](https://github.com/Soulslyly/Whereabouts/issues)
 

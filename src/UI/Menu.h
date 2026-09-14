@@ -26,6 +26,7 @@
 #include <cstdint>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <mutex>
 #include <vector>
 
@@ -93,7 +94,7 @@ namespace whereabouts
             void ClearSelection();
             void SelectSnapshot(const NpcSnapshot& snapshot, TargetSource source);
             void SelectLocation(const LocationSnapshot& snapshot);
-            void RenderDetails();
+            void RenderDetails(bool scrollWithPage = false);
             void RenderLocationDetails();
             void RenderSearchLocationResults();
             void RenderRootModals();
@@ -143,8 +144,25 @@ namespace whereabouts
             void SetCommandStatus(std::string status);
             void CloseCommandSurfaces(CommandKind command);
             [[nodiscard]] std::string CommandStatus() const;
-            void RenderSavedEntries(const std::vector<SavedNpcEntry>& entries, TargetSource source);
+            void RenderSavedEntries(
+                const std::vector<SavedNpcEntry>& entries,
+                TargetSource source,
+                std::string_view query,
+                ListPaginationState& pagination);
+            bool RenderSavedListSearch(
+                std::array<char, 128>& query,
+                ListPaginationState& pagination,
+                const char* id,
+                bool actionRendered,
+                float toolbarWidth,
+                float actionWidth);
+            void RenderSavedListPagination(
+                const char* id,
+                std::size_t filteredCount,
+                std::size_t pageCapacity,
+                ListPaginationState& pagination);
             void SaveSettings();
+            void ResetAdvancedFilters();
             void ResetFiltersToDefaults();
             [[nodiscard]] std::optional<NpcSnapshot> FindSnapshot(const FormIdentity& identity) const;
             [[nodiscard]] std::optional<bool> PendingExpectedEnabled(
@@ -171,7 +189,17 @@ namespace whereabouts
             std::array<char, 256> locationSearchText_{};
             std::array<char, 128> pluginFilter_{};
             std::array<char, 128> locationFilter_{};
+            std::array<char, 128> factionOptionSearch_{};
+            std::array<char, 128> keywordOptionSearch_{};
+            std::array<char, 128> favoriteListSearch_{};
+            std::array<char, 128> recentListSearch_{};
+            std::array<char, 128> trackedListSearch_{};
             std::vector<std::string> selectedPluginFilters_;
+            std::string exactLocationFilter_;
+            std::vector<RecordFilterOption> factionFilterOptions_;
+            std::vector<RecordFilterOption> keywordFilterOptions_;
+            RecordOptionMatches visibleFactionOptions_;
+            RecordOptionMatches visibleKeywordOptions_;
             std::string controllerBackup_;
             std::vector<NpcSnapshot> controllerResultsBackup_;
             std::vector<LocationSnapshot> controllerLocationResultsBackup_;
@@ -209,6 +237,8 @@ namespace whereabouts
             std::uint32_t pendingCommandRuntimeID_{0};
             std::uint64_t seenIndexSession_{static_cast<std::uint64_t>(-1)};
             std::uint64_t seenIndexRevision_{static_cast<std::uint64_t>(-1)};
+            std::uint64_t recordOptionsSession_{static_cast<std::uint64_t>(-1)};
+            std::uint64_t recordOptionsRevision_{static_cast<std::uint64_t>(-1)};
             std::uint32_t seenTargetFormID_{0};
             TargetSource selectedSource_{TargetSource::None};
             int sortIndex_{0};
@@ -219,6 +249,27 @@ namespace whereabouts
             int teammateFilter_{0};
             int potentialFollowerFilter_{0};
             int loadedFilter_{0};
+            std::string raceFilter_;
+            bool unknownRaceOnly_{false};
+            int sexFilter_{0};
+            int essentialFilter_{0};
+            int protectedFilter_{0};
+            int spatialKindFilter_{0};
+            int spatialFreshnessFilter_{0};
+            std::uint32_t worldspaceFilterFormID_{0};
+            bool unknownWorldspaceOnly_{false};
+            std::string worldspaceFilterLabel_;
+            std::optional<RecordFilterSelection> factionFilter_;
+            bool unknownFactionsOnly_{false};
+            std::string factionFilterLabel_;
+            std::optional<RecordFilterSelection> baseKeywordFilter_;
+            bool unknownBaseKeywordsOnly_{false};
+            std::string baseKeywordFilterLabel_;
+            bool factionOptionResultsDirty_{true};
+            bool keywordOptionResultsDirty_{true};
+            ListPaginationState favoriteListPagination_{};
+            ListPaginationState recentListPagination_{};
+            ListPaginationState trackedListPagination_{};
             bool ascending_{true};
             bool locationAscending_{true};
             bool favoritesOnly_{false};
@@ -229,7 +280,6 @@ namespace whereabouts
             bool includeGeneric_{false};
             bool genericOnly_{false};
             bool genericAutoContext_{false};
-            bool pluginSuggestionsDismissed_{false};
             bool searchAfterIndexRefresh_{false};
             bool searchSortUiDirty_{false};
             float searchPaneRatio_{0.46F};

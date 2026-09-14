@@ -6,6 +6,7 @@
 #include "Commands/CommandPolicy.h"
 #include "Core/TrackingCompletion.h"
 #include "Persistence/Settings.h"
+#include "Persistence/Serialization.h"
 #include "Search/SearchText.h"
 
 #include <algorithm>
@@ -13,6 +14,7 @@
 #include <atomic>
 #include <cctype>
 #include <cstddef>
+#include <cstdint>
 #include <cmath>
 #include <format>
 #include <limits>
@@ -21,6 +23,8 @@
 #include <string>
 #include <string_view>
 #include <utility>
+#include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 namespace whereabouts::ui
@@ -87,6 +91,216 @@ namespace whereabouts::ui
             if (availableWidth >= required) return columns;
         }
         return 1;
+    }
+
+    struct RecordPickerLayout
+    {
+        float controlWidth{1.0F};
+        float popupMaxWidth{1.0F};
+        float popupMaxHeight{1.0F};
+    };
+
+    struct TextPickerMatches
+    {
+        std::vector<std::size_t> indices;
+        std::size_t total{0};
+    };
+
+    [[nodiscard]] inline std::vector<std::string> BuildTextPickerOptions(
+        std::span<const std::string> values)
+    {
+        struct Option
+        {
+            std::string value;
+            std::string folded;
+        };
+
+        std::vector<Option> unique;
+        std::unordered_set<std::string> observed;
+        for (const auto& value : values) {
+            if (value.empty()) continue;
+            auto folded = FoldTextForSearch(value);
+            if (folded.empty() || !observed.insert(folded).second) continue;
+            unique.push_back({value, std::move(folded)});
+        }
+        std::ranges::sort(unique, [](const Option& left, const Option& right) {
+            if (left.folded != right.folded) return left.folded < right.folded;
+            return left.value < right.value;
+        });
+
+        std::vector<std::string> result;
+        result.reserve(unique.size());
+        for (auto& option : unique) result.push_back(std::move(option.value));
+        return result;
+    }
+
+    [[nodiscard]] inline TextPickerMatches FilterTextPickerOptions(
+        std::span<const std::string> options,
+        std::string_view typed,
+        std::size_t limit)
+    {
+        struct Candidate
+        {
+            std::size_t index;
+            int rank;
+            std::string folded;
+        };
+
+        const auto foldedTyped = FoldTextForSearch(typed);
+        std::vector<Candidate> candidates;
+        for (std::size_t index = 0; index < options.size(); ++index) {
+            auto folded = FoldTextForSearch(options[index]);
+            const auto position = foldedTyped.empty() ? 0 : folded.find(foldedTyped);
+            if (position == std::string::npos) continue;
+            const auto rank = foldedTyped.empty() || folded == foldedTyped ? 0 :
+                (position == 0 ? 1 : 2);
+            candidates.push_back({index, rank, std::move(folded)});
+        }
+        std::ranges::sort(candidates, [](const Candidate& left, const Candidate& right) {
+            if (left.rank != right.rank) return left.rank < right.rank;
+            return left.folded < right.folded;
+        });
+
+        TextPickerMatches result;
+        result.total = candidates.size();
+        const auto count = (std::min)(limit, candidates.size());
+        result.indices.reserve(count);
+        for (std::size_t index = 0; index < count; ++index) {
+            result.indices.push_back(candidates[index].index);
+        }
+        return result;
+    }
+
+    [[nodiscard]] inline std::vector<std::string> ObservedLocationPickerOptions(
+        std::span<const NpcSnapshot> npcs,
+        std::span<const LocationSnapshot> locations)
+    {
+        std::vector<std::string> values;
+        values.reserve(npcs.size() + locations.size());
+        for (const auto& npc : npcs) {
+            if (!npc.spatial.location.empty()) values.push_back(npc.spatial.location);
+            else if (!npc.spatial.cell.empty()) values.push_back(npc.spatial.cell);
+            else if (!npc.spatial.worldspace.empty()) values.push_back(npc.spatial.worldspace);
+        }
+        for (const auto& location : locations) {
+            if (!location.displayName.empty()) values.push_back(location.displayName);
+            else if (!location.editorID.empty()) values.push_back(location.editorID);
+        }
+        return BuildTextPickerOptions(values);
+    }
+
+    [[nodiscard]] constexpr RecordPickerLayout ConstrainRecordPickerLayout(
+        float availableWidth,
+        float rowHeight) noexcept
+    {
+        constexpr float infinity = std::numeric_limits<float>::infinity();
+        const float width = availableWidth > 0.0F && availableWidth < infinity ?
+            availableWidth : 1.0F;
+        const float row = rowHeight > 0.0F && rowHeight < infinity ? rowHeight : 1.0F;
+        return {
+            (std::min)(width, 360.0F),
+            (std::min)(width, 420.0F),
+            row * 12.0F};
+    }
+
+    [[nodiscard]] constexpr float SelectedDetailsViewportHeight(
+        float remainingPageHeight,
+        float rowHeight) noexcept
+    {
+        constexpr float infinity = std::numeric_limits<float>::infinity();
+        if (remainingPageHeight > 0.0F && remainingPageHeight < infinity) {
+            return remainingPageHeight;
+        }
+        return rowHeight > 0.0F && rowHeight < infinity ? rowHeight : 1.0F;
+    }
+
+    [[nodiscard]] inline std::string JoinAdvancedFilterSummary(
+        std::span<const std::string_view> entries)
+    {
+        std::string result;
+        for (const auto entry : entries) {
+            if (!result.empty()) result.push_back('\n');
+            result.append(entry);
+        }
+        return result;
+    }
+
+    struct FilterHeadingEntry
+    {
+        std::string name;
+        std::string summary;
+    };
+
+    struct FilterHeadingPresentation
+    {
+        std::string heading;
+        std::string tooltip;
+    };
+
+    template <class BuildNamedHeading, class MeasureText>
+    [[nodiscard]] inline FilterHeadingPresentation BuildFilterHeading(
+        std::string_view countOnlyHeading,
+        std::span<const FilterHeadingEntry> entries,
+        bool showNames,
+        float availableWidth,
+        BuildNamedHeading&& buildNamedHeading,
+        MeasureText&& measureText)
+    {
+        const auto fitHeading = [&](std::string_view text) {
+            std::string fitted{text};
+            if (!(availableWidth > 0.0F) || measureText(fitted) <= availableWidth) {
+                return fitted;
+            }
+            constexpr std::string_view ellipsis{"…"};
+            std::size_t end = text.size();
+            while (end > 0) {
+                --end;
+                while (end > 0 &&
+                       (static_cast<unsigned char>(text[end]) & 0xC0U) == 0x80U) {
+                    --end;
+                }
+                fitted.assign(text.substr(0, end));
+                fitted.append(ellipsis);
+                if (measureText(fitted) <= availableWidth) return fitted;
+            }
+            return std::string{ellipsis};
+        };
+
+        FilterHeadingPresentation result{fitHeading(countOnlyHeading), {}};
+        for (const auto& entry : entries) {
+            if (!result.tooltip.empty()) result.tooltip.push_back('\n');
+            result.tooltip.append(entry.summary);
+        }
+        if (!showNames || entries.empty() || !(availableWidth > 0.0F)) {
+            return result;
+        }
+
+        const auto joinNames = [&](std::size_t count, bool ellipsis) {
+            std::string names;
+            for (std::size_t index = 0; index < count; ++index) {
+                if (!names.empty()) names.append(", ");
+                names.append(entries[index].name);
+            }
+            if (ellipsis) {
+                if (!names.empty()) names.append(", ");
+                names.append("…");
+            }
+            return names;
+        };
+
+        auto candidate = buildNamedHeading(joinNames(entries.size(), false));
+        if (measureText(candidate) <= availableWidth) {
+            result.heading = std::move(candidate);
+            return result;
+        }
+        for (std::size_t visible = entries.size(); visible-- > 0;) {
+            candidate = buildNamedHeading(joinNames(visible, true));
+            if (measureText(candidate) <= availableWidth) {
+                result.heading = std::move(candidate);
+                return result;
+            }
+        }
+        return result;
     }
 
     struct CombinedResultAllocation
@@ -429,6 +643,12 @@ namespace whereabouts::ui
         return density == ResultDensity::Detailed;
     }
 
+    [[nodiscard]] constexpr bool IsSuperCompactResultDensity(
+        ResultDensity density) noexcept
+    {
+        return density == ResultDensity::SuperCompact;
+    }
+
     struct SecondaryMetadataPresentation
     {
         std::optional<std::string> visible;
@@ -561,10 +781,8 @@ namespace whereabouts::ui
     [[nodiscard]] constexpr ResultFooter SelectResultFooter(
         SearchRun run,
         std::size_t shown,
-        std::size_t total,
-        bool moreRowsBelow) noexcept
+        std::size_t total) noexcept
     {
-        if (moreRowsBelow) return ResultFooter::None;
         if (shown >= total) return ResultFooter::None;
         return run == SearchRun::Preview ? ResultFooter::ExpandPreview :
                                            ResultFooter::RefineSearch;
@@ -919,6 +1137,178 @@ namespace whereabouts::ui
                               SavedEntryAvailability::PluginMissing;
     }
 
+    struct SavedListSearchDocument
+    {
+        std::string name;
+        std::string plugin;
+        std::string identity;
+        std::string location;
+    };
+
+    [[nodiscard]] inline std::string StableIdentitySearchText(const FormIdentity& identity)
+    {
+        return identity.IsPersistable() ?
+            std::format("{}:{:06X}", identity.plugin, identity.localID) : std::string{};
+    }
+
+    [[nodiscard]] inline SavedListSearchDocument SavedListDocument(const NpcSnapshot& npc)
+    {
+        return {
+            npc.displayName,
+            std::string{npc.SourcePlugin()},
+            std::format(
+                "{:08X} {:08X} {} {} {} {}",
+                npc.ReferenceRuntimeID(),
+                npc.BaseRuntimeID(),
+                StableIdentitySearchText(npc.StableReference()),
+                StableIdentitySearchText(npc.StableBase()),
+                npc.referenceEditorID,
+                npc.baseEditorID),
+            std::format(
+                "{} {} {} {} {} {}",
+                npc.spatial.location,
+                npc.spatial.cell,
+                npc.spatial.worldspace,
+                npc.spatial.locationEditorID,
+                npc.spatial.cellEditorID,
+                npc.spatial.worldspaceEditorID)};
+    }
+
+    [[nodiscard]] inline SavedListSearchDocument SavedListDocument(const SavedNpcEntry& entry)
+    {
+        return {
+            entry.lastKnownName,
+            entry.identity.plugin,
+            StableIdentitySearchText(entry.identity),
+            {}};
+    }
+
+    [[nodiscard]] inline SavedListSearchDocument SavedListDocument(const TrackedDeathEntry& entry)
+    {
+        const auto plugin = entry.identity ? entry.identity->plugin : std::string{};
+        return {
+            entry.lastKnownName,
+            plugin,
+            std::format(
+                "{:08X} {}",
+                entry.runtimeFormID,
+                entry.identity ? StableIdentitySearchText(*entry.identity) : std::string{}),
+            entry.lastKnownLocation};
+    }
+
+    [[nodiscard]] inline std::vector<std::size_t> FilterSavedListRows(
+        std::span<const SavedListSearchDocument> rows,
+        std::string_view query)
+    {
+        const auto needle = FoldTextForSearch(query);
+        std::vector<std::size_t> matches;
+        matches.reserve(rows.size());
+        for (std::size_t index = 0; index < rows.size(); ++index) {
+            const auto& row = rows[index];
+            if (!needle.empty() &&
+                !FoldTextForSearch(row.name).contains(needle) &&
+                !FoldTextForSearch(row.plugin).contains(needle) &&
+                !FoldTextForSearch(row.identity).contains(needle) &&
+                !FoldTextForSearch(row.location).contains(needle)) {
+                continue;
+            }
+            matches.push_back(index);
+        }
+        return matches;
+    }
+
+    enum class ListSearchPlacement
+    {
+        BesideAction,
+        NextLine
+    };
+
+    [[nodiscard]] inline ListSearchPlacement ChooseListSearchPlacement(
+        float availableWidth,
+        float actionWidth,
+        float minimumSearchWidth,
+        float itemSpacing) noexcept
+    {
+        if (!std::isfinite(availableWidth) || !std::isfinite(actionWidth) ||
+            !std::isfinite(minimumSearchWidth) || !std::isfinite(itemSpacing)) {
+            return ListSearchPlacement::NextLine;
+        }
+        return availableWidth >= actionWidth + itemSpacing + minimumSearchWidth ?
+            ListSearchPlacement::BesideAction : ListSearchPlacement::NextLine;
+    }
+
+    struct ListPaginationState
+    {
+        std::size_t page{0};
+        bool showAll{false};
+        ResultDensity observedDensity{ResultDensity::Detailed};
+        bool densityKnown{false};
+    };
+
+    struct SavedListPage
+    {
+        std::size_t first{0};
+        std::size_t count{0};
+        std::size_t page{0};
+        std::size_t pageCount{1};
+    };
+
+    [[nodiscard]] inline std::size_t SavedListPageCapacity(
+        ResultDensity density,
+        float measuredViewportHeight,
+        float measuredRowHeight) noexcept
+    {
+        if (density == ResultDensity::Detailed) return 7;
+        if (density == ResultDensity::Compact) return 10;
+        if (!std::isfinite(measuredViewportHeight) ||
+            !std::isfinite(measuredRowHeight) || measuredRowHeight <= 0.0F) {
+            return 1;
+        }
+        return (std::max<std::size_t>)(
+            1, static_cast<std::size_t>(
+                std::floor((std::max)(0.0F, measuredViewportHeight) / measuredRowHeight)));
+    }
+
+    inline void ResetListPaginationForQuery(ListPaginationState& state) noexcept
+    {
+        state.page = 0;
+        state.showAll = false;
+    }
+
+    inline void NormalizeListPagination(
+        ListPaginationState& state,
+        std::size_t filteredCount,
+        std::size_t pageCapacity,
+        ResultDensity density) noexcept
+    {
+        pageCapacity = (std::max<std::size_t>)(1, pageCapacity);
+        if (state.densityKnown && state.observedDensity != density) {
+            ResetListPaginationForQuery(state);
+        }
+        state.observedDensity = density;
+        state.densityKnown = true;
+        if (filteredCount == 0) {
+            ResetListPaginationForQuery(state);
+            return;
+        }
+        const auto pageCount = (filteredCount + pageCapacity - 1) / pageCapacity;
+        state.page = (std::min)(state.page, pageCount - 1);
+    }
+
+    [[nodiscard]] constexpr SavedListPage VisibleSavedListPage(
+        std::size_t filteredCount,
+        std::size_t pageCapacity,
+        const ListPaginationState& state) noexcept
+    {
+        pageCapacity = (std::max<std::size_t>)(1, pageCapacity);
+        if (state.showAll) return {0, filteredCount, 0, 1};
+        const auto pageCount = (std::max<std::size_t>)(
+            1, (filteredCount + pageCapacity - 1) / pageCapacity);
+        const auto page = (std::min)(state.page, pageCount - 1);
+        const auto first = (std::min)(filteredCount, page * pageCapacity);
+        return {first, (std::min)(pageCapacity, filteredCount - first), page, pageCount};
+    }
+
     enum class PaneLayout
     {
         SideBySide,
@@ -985,6 +1375,183 @@ namespace whereabouts::ui
         std::vector<std::string> result;
         result.reserve(candidates.size());
         for (auto& candidate : candidates) result.push_back(std::move(candidate.value));
+        return result;
+    }
+
+    [[nodiscard]] inline std::vector<std::string> DemographicRaceOptions(
+        std::span<const NpcSnapshot> rows)
+    {
+        struct RaceOption
+        {
+            std::string value;
+            std::string normalized;
+        };
+
+        std::vector<RaceOption> options;
+        for (const auto& row : rows) {
+            const auto normalized = FoldTextForSearch(row.race);
+            if (normalized.empty()) continue;
+            if (std::ranges::any_of(options, [&](const RaceOption& option) {
+                    return option.normalized == normalized;
+                })) {
+                continue;
+            }
+            options.push_back({row.race, normalized});
+        }
+        std::ranges::sort(options, {}, &RaceOption::normalized);
+
+        std::vector<std::string> result;
+        result.reserve(options.size());
+        for (auto& option : options) result.push_back(std::move(option.value));
+        return result;
+    }
+
+    struct WorldspaceFilterOption
+    {
+        std::uint32_t formID{0};
+        std::string label;
+
+        [[nodiscard]] bool operator==(const WorldspaceFilterOption&) const noexcept = default;
+    };
+
+    [[nodiscard]] inline std::vector<WorldspaceFilterOption> SpatialWorldspaceOptions(
+        std::span<const NpcSnapshot> rows)
+    {
+        struct Candidate
+        {
+            std::uint32_t formID;
+            std::string label;
+            std::string editorID;
+            std::string normalized;
+        };
+
+        std::vector<Candidate> candidates;
+        for (const auto& row : rows) {
+            const auto formID = row.spatial.worldspaceFormID;
+            if (formID == 0 || std::ranges::any_of(candidates, [formID](const Candidate& value) {
+                    return value.formID == formID;
+                })) {
+                continue;
+            }
+            auto label = row.spatial.worldspace;
+            if (label.empty()) label = row.spatial.worldspaceEditorID;
+            if (label.empty()) label = std::format("FormID {:08X}", formID);
+            candidates.push_back({
+                formID,
+                std::move(label),
+                row.spatial.worldspaceEditorID,
+                {}});
+            candidates.back().normalized = FoldTextForSearch(candidates.back().label);
+        }
+
+        std::vector<std::string> duplicateLabels;
+        for (const auto& candidate : candidates) {
+            const bool duplicateLabel = std::ranges::count_if(
+                candidates,
+                [&](const Candidate& other) {
+                    return other.normalized == candidate.normalized;
+                }) > 1;
+            if (duplicateLabel && !std::ranges::contains(duplicateLabels, candidate.normalized)) {
+                duplicateLabels.push_back(candidate.normalized);
+            }
+        }
+        for (auto& candidate : candidates) {
+            if (!std::ranges::contains(duplicateLabels, candidate.normalized)) continue;
+            if (!candidate.editorID.empty() &&
+                FoldTextForSearch(candidate.editorID) != candidate.normalized) {
+                candidate.label = std::format("{} ({})", candidate.label, candidate.editorID);
+            } else {
+                candidate.label = std::format(
+                    "{} (FormID {:08X})", candidate.label, candidate.formID);
+            }
+            candidate.normalized = FoldTextForSearch(candidate.label);
+        }
+        std::ranges::sort(candidates, [](const Candidate& left, const Candidate& right) {
+            if (left.normalized != right.normalized) return left.normalized < right.normalized;
+            return left.formID < right.formID;
+        });
+
+        std::vector<WorldspaceFilterOption> result;
+        result.reserve(candidates.size());
+        for (auto& candidate : candidates) {
+            result.push_back({candidate.formID, std::move(candidate.label)});
+        }
+        return result;
+    }
+
+    struct RecordFilterOption
+    {
+        RecordFilterSelection selection;
+        std::string label;
+        std::string searchText;
+
+        [[nodiscard]] bool operator==(const RecordFilterOption&) const noexcept = default;
+    };
+
+    [[nodiscard]] inline std::vector<RecordFilterOption> RecordFilterOptions(
+        std::span<const NpcSnapshot> rows,
+        RecordFacetCategory category)
+    {
+        std::vector<RecordFilterOption> result;
+        std::unordered_set<std::uint32_t> observed;
+        for (const auto& row : rows) {
+            if (!row.recordProjection) continue;
+            const auto& facets = category == RecordFacetCategory::Faction ?
+                row.recordProjection->factions : row.recordProjection->keywords;
+            for (const auto& facet : facets) {
+                if (facet.runtimeFormID == 0 || !observed.insert(facet.runtimeFormID).second) {
+                    continue;
+                }
+                result.push_back({
+                    {facet.runtimeFormID, facet.identity},
+                    facet.label,
+                    facet.searchText});
+            }
+        }
+
+        std::unordered_map<std::string, std::size_t> labelCounts;
+        for (const auto& option : result) {
+            ++labelCounts[FoldTextForSearch(option.label)];
+        }
+        for (auto& option : result) {
+            if (labelCounts[FoldTextForSearch(option.label)] < 2) continue;
+            if (option.selection.identity.IsPersistable()) {
+                option.label = std::format(
+                    "{} ({})", option.label, option.selection.identity.plugin);
+            } else {
+                option.label = std::format(
+                    "{} ({:08X})", option.label, option.selection.runtimeFormID);
+            }
+            option.searchText = FoldTextForSearch(option.label + " " + option.searchText);
+        }
+
+        std::ranges::sort(result, [](const auto& left, const auto& right) {
+            const auto leftLabel = FoldTextForSearch(left.label);
+            const auto rightLabel = FoldTextForSearch(right.label);
+            if (leftLabel != rightLabel) return leftLabel < rightLabel;
+            return left.selection.runtimeFormID < right.selection.runtimeFormID;
+        });
+        return result;
+    }
+
+    struct RecordOptionMatches
+    {
+        std::vector<std::size_t> indices;
+        std::size_t total{0};
+    };
+
+    [[nodiscard]] inline RecordOptionMatches FilterRecordOptions(
+        std::span<const RecordFilterOption> options,
+        std::string_view typed,
+        std::size_t limit)
+    {
+        RecordOptionMatches result;
+        const auto needle = FoldTextForSearch(typed);
+        for (std::size_t index = 0; index < options.size(); ++index) {
+            if (!needle.empty() && !options[index].searchText.contains(needle)) continue;
+            ++result.total;
+            if (result.indices.size() < limit) result.indices.push_back(index);
+        }
         return result;
     }
 }

@@ -1,10 +1,13 @@
 #pragma once
 
 #include "Core/NpcIdentity.h"
+#include "Core/NpcSex.h"
+#include "Core/RecordProjection.h"
 #include "Core/SpatialSnapshot.h"
 
 #include <cstdint>
 #include <optional>
+#include <memory>
 #include <string>
 
 namespace whereabouts
@@ -15,6 +18,7 @@ namespace whereabouts
         std::string editorIDs;
         std::string plugin;
         std::string location;
+        std::string race;
 
         [[nodiscard]] bool operator==(const NpcSearchKeys&) const noexcept = default;
     };
@@ -26,9 +30,10 @@ namespace whereabouts
         std::string displayName;
         std::string referenceEditorID;
         std::string baseEditorID;
+        std::shared_ptr<const NpcRecordProjection> recordProjection;
         SpatialSnapshot spatial;
         std::string race;
-        std::string sex;
+        NpcSex sex{NpcSex::Unknown};
         std::uint16_t level{0};
         float health{0.0F};
         float magicka{0.0F};
@@ -41,6 +46,7 @@ namespace whereabouts
         bool tracked{false};
         bool favorite{false};
         bool available{false};
+        bool actorFlagsKnown{false};
         bool essential{false};
         bool protectedActor{false};
         bool trackingFull{false};

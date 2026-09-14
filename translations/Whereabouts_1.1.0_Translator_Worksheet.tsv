@@ -1,0 +1,433 @@
+﻿Internal key	English source	Translation	Placeholders
+$Whereabouts_Section	Whereabouts		
+$Whereabouts_SearchPage	Search		
+$Whereabouts_LocationsPage	Locations		
+$Whereabouts_TrackedPage	Tracked NPCs		
+$Whereabouts_FavoritesPage	Favorites		
+$Whereabouts_RecentPage	Recent		
+$Whereabouts_SettingsPage	Settings		
+$Whereabouts_SearchHeading	Search and select		
+$Whereabouts_SearchInput	NPC name or ID		
+$Whereabouts_SearchCombinedInput	NPC or location name or ID		
+$Whereabouts_SearchContent	Search content		
+$Whereabouts_NpcsOnly	NPCs only		
+$Whereabouts_NpcsAndLocations	NPCs and locations		
+$Whereabouts_LocationsOnly	Locations only		
+$Whereabouts_ResultOrder	Result order		
+$Whereabouts_NpcsFirst	NPCs first		
+$Whereabouts_LocationsFirst	Locations first		
+$Whereabouts_SearchLocations	Search locations		
+$Whereabouts_LocationSearchInput	Location name or ID		
+$Whereabouts_LocationSearchHelp	Search by cell name, EditorID, FormID, plugin, location, or worldspace.		
+$Whereabouts_IncludeLocationsHelp	Also searches cells and travel destinations.		
+$Whereabouts_PreparingSearchIndex	Preparing search index...		
+$Whereabouts_SelectedLocation	Selected Location		
+$Whereabouts_NoLocationSelected	No location selected.		
+$Whereabouts_TravelToLocation	Travel to Location		
+$Whereabouts_TravelLocationPrompt	Travel to this location?		
+$Whereabouts_TravelLocationBody	Travel to {}? This closes the SKSE menu.		{}
+$Whereabouts_TravelLocationHelp	Closes the menu, then asks Skyrim to load this cell.		
+$Whereabouts_LocationType	Type		
+$Whereabouts_LocationTravelQueued	Location travel queued.		
+$Whereabouts_LocationTravelCancelled	Location travel cancelled.		
+$Whereabouts_LocationGone	Location is no longer available.		
+$Whereabouts_PlayerUnavailable	The player is not available.		
+$Whereabouts_LocationTravelComplete	Location travel completed.		
+$Whereabouts_LocationTravelFailed	Skyrim could not travel to that location.		
+$Whereabouts_VirtualKeyboard	Virtual Keyboard		
+$Whereabouts_UseConsoleTarget	Use Console Target		
+$Whereabouts_UseCrosshairTarget	Use Crosshair Target		
+$Whereabouts_ClearSelection	Clear Selection		
+$Whereabouts_DidYouMean	Did you mean:		
+$Whereabouts_FiltersAndSorting	Filters and sorting		
+$Whereabouts_FiltersAndSortingActive	Filters and sorting ({} active)		{}
+$Whereabouts_AdvancedFilters	Advanced filters		
+$Whereabouts_AdvancedFiltersActive	Advanced filters ({} active)		{}
+$Whereabouts_NoAdvancedFiltersActive	No advanced filters active.		
+$Whereabouts_ActiveFilterNamedHeading	{} ({} active: {})		{} {} {}
+$Whereabouts_EnableAdvancedFilters	Enable Advanced Filters		
+$Whereabouts_EnableAdvancedFiltersHelp	Disabling this clears demographic, safety, spatial, worldspace, faction, and keyword filters.		
+$Whereabouts_ShowActiveFilterNames	Show active filter names		
+$Whereabouts_ShowActiveFilterNamesHelp	Shows active filter names in section headings; hover a heading for complete values.		
+$Whereabouts_SelectedBodyResizeHelp	Drag to resize Commands and NPC Details.		
+$Whereabouts_TextFilters	Text filters		
+$Whereabouts_PluginContains	Plugin contains		
+$Whereabouts_LocationContains	Location contains		
+$Whereabouts_NpcStatus	NPC status		
+$Whereabouts_Any	Any		
+$Whereabouts_Yes	Yes		
+$Whereabouts_No	No		
+$Whereabouts_Alive	Alive		
+$Whereabouts_Dead	Dead		
+$Whereabouts_Enabled	Enabled		
+$Whereabouts_Disabled	Disabled		
+$Whereabouts_Follower	Follower		
+$Whereabouts_PotentialFollower	Potential Follower		
+$Whereabouts_Loaded	Loaded		
+$Whereabouts_Unloaded	Unloaded		
+$Whereabouts_ListsAndContext	Lists and context		
+$Whereabouts_FavoritesOnly	Favorites only		
+$Whereabouts_TrackedOnly	Tracked only		
+$Whereabouts_SameLocation	Same location		
+$Whereabouts_IncludeGeneric	Include Generic NPCs		
+$Whereabouts_Order	Order		
+$Whereabouts_SortBy	Sort by		
+$Whereabouts_SortByHelp	Choose how NPC results are ordered.		
+$Whereabouts_Ascending	Ascending		
+$Whereabouts_ClearFilters	Clear Filters		
+$Whereabouts_ClearFiltersAndSearch	Clear Filters and Search Again		
+$Whereabouts_RefreshIndexAndSearch	Refresh Index and Search Again		
+$Whereabouts_MatchesHiddenByFilters	NPC matches were found but hidden by the current filters.		
+$Whereabouts_NoCurrentIndexMatch	No matching NPC or location is in the current search index.		
+$Whereabouts_Name	Name		
+$Whereabouts_Plugin	Plugin		
+$Whereabouts_Level	Level		
+$Whereabouts_Location	Location		
+$Whereabouts_NpcLocation	NPC location		
+$Whereabouts_Distance	Distance		
+$Whereabouts_Random	Random		
+$Whereabouts_Direction	Direction		
+$Whereabouts_DirectionHelp	Choose ascending or descending order.		
+$Whereabouts_Descending	Descending		
+$Whereabouts_NotUsed	Not used		
+$Whereabouts_RandomDirectionNote	Random order does not use a direction.		
+$Whereabouts_SelectedNpc	Selected NPC		
+$Whereabouts_NoNpcSelected	No NPC selected.		
+$Whereabouts_Commands	Commands		
+$Whereabouts_CopyId	Copy ID		
+$Whereabouts_Copy	Copy		
+$Whereabouts_CocCommand	COC command		
+$Whereabouts_FormId	FormID		
+$Whereabouts_EditorId	EditorID		
+$Whereabouts_Stable	Stable		
+$Whereabouts_NpcDetails	NPC Details		
+$Whereabouts_Identity	Identity		
+$Whereabouts_Status	Status		
+$Whereabouts_TargetSelection	Target selection		
+$Whereabouts_AutoConsole	Auto-select console target		
+$Whereabouts_AutoCrosshair	Auto-select crosshair target		
+$Whereabouts_DisplayAndSearch	Display and search		
+$Whereabouts_Language	Language		
+$Whereabouts_FollowSkyrim	Follow Skyrim (default)		
+$Whereabouts_English	English		
+$Whereabouts_Chinese	Chinese		
+$Whereabouts_French	French		
+$Whereabouts_German	German		
+$Whereabouts_Italian	Italian		
+$Whereabouts_Japanese	Japanese		
+$Whereabouts_Polish	Polish		
+$Whereabouts_Russian	Russian		
+$Whereabouts_Spanish	Spanish		
+$Whereabouts_LoadedLanguage	Loaded language: {}		{}
+$Whereabouts_RestartForLanguage	Restart Skyrim to apply this language.		
+$Whereabouts_KeyboardLayout	Virtual Keyboard layout		
+$Whereabouts_Alphabetical	Alphabetical		
+$Whereabouts_DistanceUnit	Distance unit		
+$Whereabouts_Meters	Meters		
+$Whereabouts_Feet	Feet		
+$Whereabouts_GameUnits	Game units		
+$Whereabouts_ResultDetail	Result detail		
+$Whereabouts_Detailed	Detailed		
+$Whereabouts_Compact	Compact		
+$Whereabouts_SuperCompact	Super Compact		
+$Whereabouts_Tracking	Tracking		
+$Whereabouts_NotifyDeath	Notify when a tracked NPC dies		
+$Whereabouts_Maintenance	Maintenance		
+$Whereabouts_RefreshIndex	Refresh Search Index		
+$Whereabouts_RebuildSearchData	Rebuild search data		
+$Whereabouts_PrepareUninstall	Prepare for Uninstall		
+$Whereabouts_Advanced	Advanced		
+$Whereabouts_LiveSearch	Live search		
+$Whereabouts_TeleportSeparation	Teleport separation		
+$Whereabouts_ConfirmDisable	Confirm disable		
+$Whereabouts_ConfirmTeleport	Confirm teleport		
+$Whereabouts_KeepOpen	Keep menu open after inline command		
+$Whereabouts_DebugLogging	Debug logging		
+$Whereabouts_Reset	Reset		
+$Whereabouts_RestoreDefaults	Restore Default Settings		
+$Whereabouts_Restore	Restore		
+$Whereabouts_About	About Whereabouts		
+$Whereabouts_RecentNpcs	Recent NPCs		
+$Whereabouts_ClearRecent	Clear Recent		
+$Whereabouts_ClearFavorites	Clear Favorites		
+$Whereabouts_ClearMarkers	Clear All Markers		
+$Whereabouts_Action	Action		
+$Whereabouts_Remove	Remove		
+$Whereabouts_RemoveRecord	Remove Record		
+$Whereabouts_RemoveUnavailable	Remove Unavailable Entries		
+$Whereabouts_Clear	Clear		
+$Whereabouts_Cancel	Cancel		
+$Whereabouts_Apply	Apply		
+$Whereabouts_Backspace	Backspace		
+$Whereabouts_Space	Space		
+$Whereabouts_Confirm	Confirm		
+$Whereabouts_ContinueTrack	Continue and Track		
+$Whereabouts_EnableMove	Enable and move		
+$Whereabouts_Health	Health		
+$Whereabouts_Magicka	Magicka		
+$Whereabouts_Stamina	Stamina		
+$Whereabouts_GenericNpc	Generic NPC		
+$Whereabouts_Tracked	Tracked		
+$Whereabouts_Favorite	Favorite		
+$Whereabouts_MissingBody	Body no longer available		
+$Whereabouts_Npc	NPC		
+$Whereabouts_NoEntries	No entries.		
+$Whereabouts_SearchHelp	Search by name, EditorID, FormID, or stable plugin ID.		
+$Whereabouts_PluginFilterHelp	Matches any part of a plugin name.		
+$Whereabouts_FollowerHelp	Currently following the player.		
+$Whereabouts_PotentialFollowerHelp	In Skyrim's potential-follower faction; recruitment can still be blocked.		
+$Whereabouts_TriStateFilterHelp	Any ignores this status. Yes requires it. No excludes it.		
+$Whereabouts_FollowerTriStateHelp	Currently following. Any ignores it; Yes requires it; No excludes it.		
+$Whereabouts_PotentialFollowerTriStateHelp	Potential-follower faction. Any ignores it; Yes requires it; No excludes it.		
+$Whereabouts_SameLocationHelp	Same cell or assigned Location.		
+$Whereabouts_GenericHelp	Shows non-unique actors. Commands use the exact reference FormID.		
+$Whereabouts_ResizeHelp	Drag to resize the result and detail panes.		
+$Whereabouts_ConsoleTargetHelp	Uses the console-selected NPC when Whereabouts opens.		
+$Whereabouts_CrosshairTargetHelp	Uses the NPC under the crosshair when Whereabouts opens.		
+$Whereabouts_CompactHelp	Compact shows one line per NPC.		
+$Whereabouts_SuperCompactHelp	Super Compact shows only NPC name and FormID.		
+$Whereabouts_RefreshHelp	Rebuilds the searchable NPC list.		
+$Whereabouts_CleanupRunningHelp	Cleanup is already running.		
+$Whereabouts_CleanupCompleteHelp	Cleanup complete. Save, quit Skyrim, then remove the mod.		
+$Whereabouts_CleanupHelp	Clears markers and Whereabouts save lists. Then save, quit Skyrim, and remove the mod.		
+$Whereabouts_RestorePrompt	Restore Whereabouts defaults?		
+$Whereabouts_RestoreBody	Restore every global Whereabouts setting to its default value?		
+$Whereabouts_ModTitle	Whereabouts - Search, Locate, and Track NPCs		
+$Whereabouts_Requirements	Requires SKSE, Address Library for SKSE Plugins, and SKSE Menu Framework.		
+$Whereabouts_ReferenceCredit	Thanks to k0mp1ex for Where Are You, an awesome mod and the inspiration for Whereabouts.		
+$Whereabouts_FrameworkCredit	SKSE Menu Framework API by QTR-Modding, used under LGPL-2.1.		
+$Whereabouts_ClearFavoritesPrompt	Clear all favorites?		
+$Whereabouts_ClearFavoritesBody	Remove every favorite from this save?		
+$Whereabouts_ClearRecentPrompt	Clear recent history?		
+$Whereabouts_ClearRecentBody	Remove all recent NPCs from this save?		
+$Whereabouts_ClearTrackingPrompt	Clear all tracking markers?		
+$Whereabouts_ClearTrackingBody	Remove all active Whereabouts map markers?		
+$Whereabouts_NoTracked	No tracked NPCs.		
+$Whereabouts_TrackingBusy	Tracking is updating.		
+$Whereabouts_RemoveMissingHelp	Removes this missing-body history entry.		
+$Whereabouts_MissingLegend	M means the body is no longer available. Remove Record dismisses that history entry.		
+$Whereabouts_TrackingCapacityHelp	Up to 100 active markers. Missing-body records use no marker slots.		
+$Whereabouts_VirtualKeyboardPrompt	Whereabouts Virtual Keyboard		
+$Whereabouts_NonUniqueHelp	Non-unique NPC. Commands use this exact reference FormID.		
+$Whereabouts_Pending	Pending		
+$Whereabouts_PendingHelp	Verifies after Skyrim resumes.		
+$Whereabouts_DynamicUnavailable	Dynamic / unavailable		
+$Whereabouts_ChooseCopyHelp	Choose which ID to copy.		
+$Whereabouts_Track	Track		
+$Whereabouts_Untrack	Untrack		
+$Whereabouts_Enable	Enable		
+$Whereabouts_Disable	Disable		
+$Whereabouts_AddFavorite	Add Favorite		
+$Whereabouts_RemoveFavorite	Remove Favorite		
+$Whereabouts_CommandsBlockedHelp	Commands are unavailable because Prepare for Uninstall has cleared this save's Whereabouts state.		
+$Whereabouts_RemoveMarkerHelp	Removes this map and compass marker.		
+$Whereabouts_AddMarkerHelp	Adds a map and compass marker.		
+$Whereabouts_ConsoleHelp	Opens the console with this NPC selected.		
+$Whereabouts_EnableDisableHelp	Changes this NPC's enabled state and verifies the result.		
+$Whereabouts_Label	Label		
+$Whereabouts_Value	Value		
+$Whereabouts_Source	Source		
+$Whereabouts_Reference	Reference		
+$Whereabouts_BaseNpc	Base NPC		
+$Whereabouts_ReferenceEditorId	Reference EditorID		
+$Whereabouts_BaseEditorId	Base EditorID		
+$Whereabouts_Race	Race		
+$Whereabouts_Sex	Sex		
+$Whereabouts_Male	Male		
+$Whereabouts_Female	Female		
+$Whereabouts_Unknown	Unknown		
+$Whereabouts_Unavailable	Unavailable		
+$Whereabouts_NpcNoLongerAvailable	NPC is no longer available		
+$Whereabouts_UnknownCommand	Unknown command		
+$Whereabouts_Dynamic	Dynamic		
+$Whereabouts_Essential	Essential		
+$Whereabouts_Protected	Protected		
+$Whereabouts_RaceFilterHelp	Select an observed NPC race.		
+$Whereabouts_KnownFlagFilterHelp	No means the flag is known to be absent.		
+$Whereabouts_Area	Area		
+$Whereabouts_LocationData	Location data		
+$Whereabouts_SpatialFreshnessFilterHelp	Current is loaded; Last observed is unloaded.		
+$Whereabouts_WorldspaceFilterHelp	Interior cells normally have no worldspace.		
+$Whereabouts_None	None		
+$Whereabouts_Flags	Flags		
+$Whereabouts_State	State		
+$Whereabouts_Active	Active		
+$Whereabouts_NotTracked	Not tracked		
+$Whereabouts_LocationRecord	Location record		
+$Whereabouts_Cell	Cell		
+$Whereabouts_CellRecord	Cell record		
+$Whereabouts_Worldspace	Worldspace		
+$Whereabouts_WorldspaceRecord	Worldspace record		
+$Whereabouts_ExteriorGrid	Exterior grid		
+$Whereabouts_Position	Position		
+$Whereabouts_LastObservedUnloaded	Last observed; NPC is currently unloaded		
+$Whereabouts_DifferentUnknownSpace	Different or unknown space		
+$Whereabouts_ConfirmCommandPrompt	Confirm Whereabouts command		
+$Whereabouts_TrackingWarningPrompt	Whereabouts tracking warning		
+$Whereabouts_UninstallPrompt	Prepare Whereabouts for uninstall?		
+$Whereabouts_TrackingWarningBody	Tracking stores quest-marker data in your save. Before uninstalling Whereabouts, untrack all NPCs or use Settings > Prepare for Uninstall, then make a new save and exit Skyrim.		
+$Whereabouts_UninstallBody	Untracks every NPC, clears marker objectives and saved Whereabouts lists, and shuts down tracking. After cleanup finishes, make a new manual save, quit Skyrim completely, then uninstall. NPCs previously moved or enabled/disabled are not restored.		
+$Whereabouts_PluginMissing	Plugin missing		
+$Whereabouts_NpcUnavailable	NPC unavailable		
+$Whereabouts_Travel	Travel		
+$Whereabouts_Bring	Bring		
+$Whereabouts_Inventory	Inventory		
+$Whereabouts_EnableDisable	Enable / Disable		
+$Whereabouts_SelectConsole	Select in Console		
+$Whereabouts_Command	Command		
+$Whereabouts_Console	Console		
+$Whereabouts_Crosshair	Crosshair		
+$Whereabouts_DeadBodyPresent	Dead; body present		
+$Whereabouts_UnknownStatus	Unknown status		
+$Whereabouts_IndexStartFailure	Search index could not start. Use Refresh Search Index in Settings.		
+$Whereabouts_FormsNotReady	Game forms are not ready. Use Refresh Search Index in Settings.		
+$Whereabouts_IndexRefreshFailure	Search index refresh failed. Use Refresh Search Index in Settings.		
+$Whereabouts_IndexUnavailable	Search index is unavailable. Use Refresh Search Index in Settings.		
+$Whereabouts_NoConsoleNpc	No valid NPC reference is selected in the console.		
+$Whereabouts_NoCrosshairNpc	No valid NPC reference is under the crosshair.		
+$Whereabouts_SessionNotReady	The current game session is not ready.		
+$Whereabouts_SelectionCleared	Selection cleared.		
+$Whereabouts_CommandsBlocked	Whereabouts commands are blocked after uninstall cleanup.		
+$Whereabouts_PendingOtherNpc	Finish the pending Enable/Disable request before changing another NPC.		
+$Whereabouts_ReviewTrackingWarning	Review the tracking save-data warning.		
+$Whereabouts_CommandCancelled	Command cancelled.		
+$Whereabouts_TrackingCancelled	Tracking cancelled.		
+$Whereabouts_CommandQueued	Command queued.		
+$Whereabouts_NpcGone	NPC is no longer available.		
+$Whereabouts_SessionEnded	The current game session ended before state confirmation.		
+$Whereabouts_NoIdAvailable	No ID is available for this NPC.		
+$Whereabouts_DeadNotMoved	Dead NPCs are not moved or resurrected		
+$Whereabouts_LoadedForInventory	NPC must be loaded to open inventory		
+$Whereabouts_TrackingFull	All 100 tracking slots are in use		
+$Whereabouts_DynamicFavorite	Dynamic NPCs cannot be saved as favorites		
+$Whereabouts_DifferentInteriorConfirm	NPC is in a different interior cell; confirm teleport		
+$Whereabouts_DifferentWorldConfirm	NPC is in a different worldspace; confirm teleport		
+$Whereabouts_UnknownLocationConfirm	NPC location relationship is unknown; confirm teleport		
+$Whereabouts_DisabledConfirmMove	NPC is disabled; confirm enabling before moving		
+$Whereabouts_ProtectedMoveConfirm	NPC is essential or protected; moving may disrupt quests		
+$Whereabouts_ProtectedDisableConfirm	NPC is essential or protected; disabling may disrupt quests		
+$Whereabouts_ConfirmDisabling	Confirm disabling this NPC		
+$Whereabouts_InteriorCell	Interior cell		
+$Whereabouts_ExteriorCell	Exterior cell		
+$Whereabouts_LocationUnavailable	Location unavailable		
+$Whereabouts_Interior	Interior		
+$Whereabouts_Exterior	Exterior		
+$Whereabouts_Actor	Actor		
+$Whereabouts_NamedParent	Named parent		
+$Whereabouts_Current	Current		
+$Whereabouts_LastObserved	Last observed		
+$Whereabouts_UnknownNpc	Unknown NPC		
+$Whereabouts_LastLocationUnknown	Last location unknown		
+$Whereabouts_ResultSummary	{} shown / {} matches		{} {}
+$Whereabouts_ShowMore	Show {} more - click		{}
+$Whereabouts_RefineSearch	{} shown / refine your search to see the remaining {}		{} {}
+$Whereabouts_SearchError	Search error: {}		{}
+$Whereabouts_SettingsError	Settings error: {}		{}
+$Whereabouts_TrackingCapacity	Active markers: {} / 100 | Missing bodies: {}		{} {}
+$Whereabouts_RemovedUnavailableOne	Removed {} unavailable entry.		{}
+$Whereabouts_RemovedUnavailableMany	Removed {} unavailable entries.		{}
+$Whereabouts_CopiedIdentity	Copied {} {}.		{} {}
+$Whereabouts_CopiedIdentityFallback	No {} - copied {} {}.		{} {} {}
+$Whereabouts_NoLocationId	No ID is available for this location.		
+$Whereabouts_LocationCopyHelp	Choose which location value to copy.		
+$Whereabouts_LiveResults	Live results		
+$Whereabouts_LiveResultsHelp	Maximum rows shown while typing.		
+$Whereabouts_FullResults	Full results		
+$Whereabouts_FullResultsHelp	Maximum rows shown after Search or Enter.		
+$Whereabouts_ShowAllResults	Show all results		
+$Whereabouts_ShowAllResultsTooltip	Removes both result limits; the scroll area still keeps the menu responsive.		
+$Whereabouts_RemovePluginFilter	Remove this plugin filter.		
+$Whereabouts_RequestQueued	{} request queued.		{}
+$Whereabouts_CommandCompleted	{} completed.		{}
+$Whereabouts_UninstallFailureDetail	{} Do not uninstall Whereabouts yet.		{}
+$Whereabouts_DifferentWorldspaceTrackNotice	{} The NPC is in a different worldspace, so its quest marker may not appear on the map until you enter that worldspace.		{}
+$Whereabouts_TrackedNpcFallback	Tracked NPC		
+$Whereabouts_TrackedDeathBy	{} was killed by {}.		{} {}
+$Whereabouts_TrackedDeath	{} has died.		{}
+$Whereabouts_IndexRefreshed	Search index refreshed. {} NPCs and {} locations available.		{} {}
+$Whereabouts_IndexRefreshQueued	Search index refresh queued.		
+$Whereabouts_IndexRefreshRunning	Search index refresh already in progress.		
+$Whereabouts_IndexReady	Search index is ready.		
+$Whereabouts_IndexRefreshCouldNotStart	Search index refresh could not start.		
+$Whereabouts_UninstallCleanupComplete	Whereabouts cleanup completed. Make a new manual save, exit Skyrim completely, and then remove the mod. Intentional NPC movement or enabled/disabled state changes are not reverted.		
+$Whereabouts_UninstallAlreadyRunning	Uninstall cleanup is already running.		
+$Whereabouts_UninstallAlreadyComplete	Whereabouts cleanup is already complete. Make a new manual save and exit Skyrim.		
+$Whereabouts_UninstallClearing	Clearing Whereabouts save data and tracking quest...		
+$Whereabouts_UninstallTaskUnavailable	SKSE task interface is unavailable; do not uninstall yet.		
+$Whereabouts_EnableRequested	Enable requested; verification will finish after Skyrim resumes.		
+$Whereabouts_DisableRequested	Disable requested; verification will finish after Skyrim resumes.		
+$Whereabouts_NpcEnabled	NPC enabled.		
+$Whereabouts_NpcDisabled	NPC disabled.		
+$Whereabouts_EnableUnconfirmed	Enable was requested, but the NPC's enabled state could not be confirmed.		
+$Whereabouts_DisableUnconfirmed	Disable was requested, but the NPC's disabled state could not be confirmed.		
+$Whereabouts_TrackingClearQueued	Tracking clear queued.		
+$Whereabouts_TrackedBodyMarked	Tracked body remains marked.		
+$Whereabouts_TrackedBodyUnavailable	Tracked body is no longer available.		
+$Whereabouts_TrackCompleted	Track completed.		
+$Whereabouts_TrackIncomplete	Track did not complete.		
+$Whereabouts_UntrackCompleted	Untrack completed.		
+$Whereabouts_UntrackIncomplete	Untrack did not complete.		
+$Whereabouts_TrackingClearCompleted	Tracking clear completed.		
+$Whereabouts_TrackingClearIncomplete	Tracking clear did not complete.		
+$Whereabouts_UninstallOperationCompleted	Uninstall cleanup completed.		
+$Whereabouts_UninstallOperationIncomplete	Uninstall cleanup did not complete.		
+$Whereabouts_TrackAliasFailure	Track did not acquire a tracking alias.		
+$Whereabouts_UntrackAliasFailure	Untrack did not release the tracking alias.		
+$Whereabouts_UninstallAliasFailure	Uninstall cleanup did not clear every tracking alias.		
+$Whereabouts_TrackingSessionEnded	The game session ended before tracking completed.		
+$Whereabouts_UninstallQuestStopFailure	Whereabouts tracking quest did not stop; do not uninstall yet.		
+$Whereabouts_UninstallVerifyFailure	Whereabouts quest cleanup could not be verified; do not uninstall yet.		
+$Whereabouts_UninstallPreparedHeading	Prepared for Uninstall		
+$Whereabouts_UninstallLockedPage	Whereabouts is locked because cleanup completed. Open Settings to resume, or make a new manual save, quit Skyrim completely, and remove the mod.		
+$Whereabouts_UninstallPreparedInstructions	Tracking markers and Whereabouts save lists are cleared. Make a new manual save, quit Skyrim completely, and remove the mod.		
+$Whereabouts_UninstallResumeExplanation	Changed your mind? Resume starts Whereabouts again with empty tracking, Favorites, Recent, and tracked-death history.		
+$Whereabouts_UninstallResumeButton	Resume Whereabouts		
+$Whereabouts_UninstallResumeSessionUnavailable	The current game session is not ready. Whereabouts remains prepared for uninstall.		
+$Whereabouts_UninstallResumed	Whereabouts resumed with empty mod data. Refreshing the Search index...		
+$Whereabouts_ResumePending	Restarting tracking. Close the SKSE menu briefly so Skyrim can finish, then reopen Settings.		
+$Whereabouts_ResumeReady	Whereabouts resumed. Tracking is ready; saved lists remain empty.		
+$Whereabouts_ResumeFailed	Tracking could not resume. Whereabouts remains locked; retry Resume or reload a save from before cleanup.		
+$Whereabouts_PreparedReloadHelp	Reloading a save while Whereabouts is still installed resumes the mod. To uninstall, save after cleanup and quit without reloading.		
+$Whereabouts_RemoveUnavailableHelp	Removes entries from missing plugins. Temporarily unavailable NPCs are kept.		
+$Whereabouts_FavoriteSaveFailed	Favorite could not be saved. The list is full or the NPC identity or name is invalid.		
+$Whereabouts_TrackingObjectiveUnverified	Tracking alias exists, but its active map objective could not be verified. Try Track again.		
+$Whereabouts_TrackingStartFailed	Tracking quest could not be started		
+$Whereabouts_TrackingTargetUnavailable	Tracking target is unavailable		
+$Whereabouts_TrackingLayoutInvalid	Tracking quest layout is invalid		
+$Whereabouts_TrackingUnavailable	Tracking quest is unavailable		
+$Whereabouts_TrackingScriptNotReady	Tracking quest script did not become ready		
+$Whereabouts_TrackingDispatchFailed	Tracking request could not be dispatched		
+$Whereabouts_TrackingTaskUnavailable	SKSE task interface is unavailable		
+$Whereabouts_TrackingUpdating	Tracking is updating		
+$Whereabouts_TrackingExpectedBodyUnavailable	Tracking quest or expected body is unavailable		
+$Whereabouts_TrackingSlotChanged	Tracking slot no longer owns the expected body		
+$Whereabouts_DeathDispatchFailed	Dead-body retirement could not be dispatched		
+$Whereabouts_DeathScriptNotReady	Tracking quest script did not become ready for dead-body retirement		
+$Whereabouts_EmptyObjectiveUnavailable	Tracking objective is unavailable		
+$Whereabouts_EmptyObjectiveDispatchFailed	Empty tracked objective could not be dispatched		
+$Whereabouts_EmptyObjectiveScriptNotReady	Tracking quest script did not become ready for empty-objective retirement		
+$Whereabouts_UninstallOwnershipFailed	Uninstall cleanup could not acquire tracking ownership		
+$Whereabouts_TrackingLayoutInvalidPublic	Whereabouts tracking quest layout is invalid		
+$Whereabouts_TrackingLayoutInvalidSentence	Whereabouts tracking quest layout is invalid.		
+$Whereabouts_TrackingAliasUnavailable	A validated tracking alias became unavailable		
+$Whereabouts_LockedPageProgress	Whereabouts is locked. Open Settings for progress and recovery instructions.		
+$Whereabouts_ResumeNotSafeToUninstall	Tracking restart has not been verified. Do not uninstall from this state. Retry Resume or load a save from before cleanup.		
+$Whereabouts_Faction	Faction		
+$Whereabouts_BaseKeyword	Base keyword		
+$Whereabouts_FindFaction	Find faction		
+$Whereabouts_FindKeyword	Find keyword		
+$Whereabouts_FindPlugin	Find plugin		
+$Whereabouts_FindLocation	Find location		
+$Whereabouts_SearchList	Search list...		
+$Whereabouts_NoMatchingEntries	No matching entries.		
+$Whereabouts_Previous	Previous		
+$Whereabouts_Next	Next		
+$Whereabouts_PageCount	Page {} of {}		{} {}
+$Whereabouts_ShowAll	Show all		
+$Whereabouts_PluginPickerHelp	Select one or more plugins.		
+$Whereabouts_LocationPickerHelp	Type for contains matching, or select an observed location for an exact match.		
+$Whereabouts_SelectedCount	{} selected		{}
+$Whereabouts_NoMatchingRecords	No matching records.		
+$Whereabouts_RecordMatchesNarrow	{} matches; type to narrow.		{}
+$Whereabouts_FactionFilterHelp	Filter by an NPC's base faction.		
+$Whereabouts_BaseKeywordFilterHelp	Filter by a keyword on the base NPC.		

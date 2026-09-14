@@ -7,8 +7,40 @@
 
 namespace whereabouts
 {
+    std::string FormatPublicRuntimeFormID(std::uint32_t formID)
+    {
+        return formID == 0 ? std::string{} : std::format("{:08X}", formID);
+    }
+
+    std::string FormatPublicStableID(const FormIdentity& identity)
+    {
+        return identity.IsPersistable() ?
+            std::format("{}:{:06X}", identity.plugin, identity.localID) :
+            std::string{};
+    }
+
     namespace
     {
+        PublicNpcSex ToPublicNpcSex(NpcSex sex) noexcept
+        {
+            switch (sex) {
+            case NpcSex::Male: return PublicNpcSex::Male;
+            case NpcSex::Female: return PublicNpcSex::Female;
+            case NpcSex::Unknown: return PublicNpcSex::Unknown;
+            }
+            return PublicNpcSex::Unknown;
+        }
+
+        PublicAreaType ToPublicAreaType(SpatialKind kind) noexcept
+        {
+            switch (kind) {
+            case SpatialKind::Interior: return PublicAreaType::Interior;
+            case SpatialKind::Exterior: return PublicAreaType::Exterior;
+            case SpatialKind::Unknown: return PublicAreaType::Unknown;
+            }
+            return PublicAreaType::Unknown;
+        }
+
         constexpr PublicLocationStatus ToPublicLocationStatus(SpatialFreshness freshness) noexcept
         {
             switch (freshness) {
@@ -47,17 +79,16 @@ namespace whereabouts
         });
         if (found == view->catalog->end()) return std::nullopt;
 
-        std::string stableReferenceID;
-        if (found->StableReference().IsPersistable()) {
-            stableReferenceID = std::format(
-                "{}:{:06X}",
-                found->StableReference().plugin,
-                found->StableReference().localID);
-        }
+        auto stableReferenceID = FormatPublicStableID(found->StableReference());
         const bool favorite = found->StableReference().IsPersistable() &&
             std::ranges::any_of(favoriteIdentities, [&](const auto& identity) {
                 return identity == found->StableReference();
             });
+        const auto& projection = found->recordProjection;
+        const bool traitsKnown = projection && projection->traitsKnown;
+        const bool actorFlagsKnown = found->actorFlagsKnown;
+        const bool factionsKnown = projection && projection->factionsKnown;
+        const bool keywordsKnown = projection && projection->keywordsKnown;
         return PublicNpcRecord{
             .name = found->displayName,
             .stableReferenceID = std::move(stableReferenceID),
@@ -66,7 +97,18 @@ namespace whereabouts
             .location = found->spatial.location,
             .cell = found->spatial.cell,
             .worldspace = found->spatial.worldspace,
+            .worldspaceFormID = FormatPublicRuntimeFormID(found->spatial.worldspaceFormID),
             .locationStatus = ToPublicLocationStatus(found->spatial.freshness),
+            .areaType = ToPublicAreaType(found->spatial.kind),
+            .traitsKnown = traitsKnown,
+            .race = traitsKnown ? projection->race : std::string{},
+            .sex = traitsKnown ? ToPublicNpcSex(projection->sex) : PublicNpcSex::Unknown,
+            .actorFlagsKnown = actorFlagsKnown,
+            .essential = actorFlagsKnown && found->essential,
+            .protectedActor = actorFlagsKnown && found->protectedActor,
+            .factionsKnown = factionsKnown,
+            .baseKeywordsKnown = keywordsKnown,
+            .recordProjection = projection,
             .alive = found->alive,
             .enabled = found->enabled,
             .loaded = found->loaded,

@@ -1,10 +1,126 @@
 # Changelog
 
+## 1.1.0 - Saved-list page scrolling and final release
+
+- Add independent whole-page vertical scrolling to Recent, Favorites, and Tracked so full lists cannot push Selected NPC content beyond reach.
+- Keep NPC Details on its own inner scrollbar and preserve the drag-handle-free Selected NPC layout.
+
+## 1.1.0-rc.10 - Selected NPC scroll isolation
+
+- Place the Selected NPC summary and Commands in a non-scrolling host while NPC Details owns the only lower scrollbar.
+- Let expanded NPC Details consume the remaining pane height instead of reserving a fixed eight-row viewport and leaving unused space below it.
+- Preserve selected-location scrolling, the persistent Show all results default, transient saved-list pagination state, saves, ESP, Papyrus, and command behavior.
+
+## 1.1.0-rc.9 - Selected NPC scrolling and settings default
+
+- Keep Commands outside the independently scrolling NPC Details viewport on every Selected NPC page and allocate detail height only while NPC Details is open.
+- Default persistent Settings → Show all results to enabled while preserving explicit user configuration and transient Recent/Favorites/Tracked Show all state.
+- Synchronize package/dependency/version records and the exact 82-export SKSE Menu Framework documentation.
+
+## 1.1.0-rc.8 - Selected NPC visibility and quest structure
+
+- Remove the Selected NPC drag handle and keep Commands/NPC Details in an always-visible fixed-height borderless scrolling body beneath the pinned summary.
+- Correct the tracking quest stage-log subrecord structure so `QSDT` precedes its `CNAM` journal text while preserving the quest identity, objectives, aliases, VMAD, and save contract.
+
+## 1.1.0-rc.7 - SMF runtime-preflight correction
+
+- Require every SKSE Menu Framework export consumed by the rc.3-rc.6 UI before runtime registration succeeds, including picker autofocus and saved-list search exports.
+- Preserve rc.6 UI, filter, picker, density, Selected NPC, list-search, pagination, localization, save, ESP, Papyrus, command, and tracking behavior unchanged.
+
+## 1.1.0-rc.6 - Saved-list search and pagination
+
+- Add compact, responsive search controls to Recent, Favorites, and Tracked for name, plugin, identity, and available location text.
+- Apply pagination after filtering: 7 rows in Detailed, 10 in Compact, and measured-height capacity in Super Compact.
+- Add Previous, Next, page count, and transient Show all controls with safe reset/clamping after query, density, removal, clearing, tracking, and list-size changes.
+- Preserve saved-list ordering, Recent retention, Favorites persistence, marker/history semantics, save schemas, and command behavior.
+- Pass 26 focused native assertions, four affected UI/localization/version contracts, and the corrected Release build; Skyrim acceptance remains pending.
+
+## 1.1.0-rc.5 - Selected NPC and Super Compact
+
+- Keep the Selected NPC summary permanently pinned above an independently scrolling, borderless, vertically resizable lower area.
+- Make Commands open by default and NPC Details closed by default without persisting panel sizing in save data.
+- Add Super Compact density whose NPC result rows contain only the NPC name and FormID, apart from required row actions.
+- Complete concrete rc.3/rc.4 corrections assigned by the cumulative review without changing unrelated filter semantics.
+- Pass 78 focused native assertions, five affected UI/translation/version contracts, and one Release build; Skyrim acceptance remains pending.
+
+## 1.1.0-rc.4 - Search pickers and result footer
+
+- Replace Plugin text entry with a constrained searchable multi-select picker and removable chips.
+- Add a constrained hybrid Location picker: exact observed selection when chosen, broader contains matching while text remains unselected.
+- Bound picker width and height, retain scrolling and keyboard search, and expose clipped values through hover tooltips.
+- Reserve result-footer space only when a footer is actually rendered and remove the misleading Enter instruction from Show more.
+- Preserve all unrelated filter, save, ESP, Papyrus, dependency, command, and tracking behavior.
+
+## 1.1.0-rc.3 - Compact filters
+
+- Remove visible Sort by and Direction labels while retaining their explanations as hover tooltips.
+- Keep common filters and sorting together and render Advanced filters as a closed sibling section immediately below them.
+- Add optional active-filter names to both headings with width-aware whole-entry elision and complete hover summaries.
+- Add settings for active names and Advanced-filter visibility; disabling Advanced filters immediately clears their transient state and independently neutralizes them in emitted queries.
+- Keep all new state in the global INI or transient UI state; no save-game, ESP, Papyrus, dependency, or command contract changes.
+
+## 1.1.0-rc.2 - Runtime corrections
+
+- Use template-aware base-record Essential and Protected values when a reliable loaded actor state is unavailable.
+- Move advanced Search controls into a closed-by-default nested section that reports and summarizes active filters.
+- Constrain searchable Faction and Base Keyword pickers and keep Selected NPC summary visible above a transient resizable command/detail body.
+- Pass focused RED/GREEN tests, the Release build, effective 334/334 selected regression checks, exact SMF 3.14.0.0/82-export validation, and final deterministic archive validation.
+
+## 1.1.0-rc.1 - Feature-parity release candidate
+
+- Add demographic and actor-safety filters for Race, Sex, Essential, and Protected state with explicit Unknown handling.
+- Add interior/exterior, spatial-data, and exact worldspace filters using immutable current or last-observed information.
+- Add bounded template-aware Faction and Base Keyword filtering without retaining game pointers.
+- Add read-only Papyrus API v2 while preserving every API v1 entry point.
+- Expand the English catalog to 408 keys and provide a deterministic translator worksheet plus optional machine-translation overwrites.
+- Complete the 81-export SKSE Menu Framework preflight, synchronize version records, and move source distribution exclusively to GitHub.
+- Make archive hashing independent of optional PowerShell cmdlets so validation works in the configured Windows PowerShell host.
+- Correct the source-ownership gate to inspect the GitHub source validator and reject hidden internal directories generically.
+
+## 1.1.0-beta.4 - Demographic and spatial filter development
+
+- Open one shared 1.1.0 development snapshot from the runtime-accepted `1.0.2+layout.5` source baseline.
+- Plan Beta 4 race, sex, essential, and protected filters and Beta 5 area, spatial-freshness, and worldspace filters.
+- Add transient Race, Sex, Essential, and Protected NPC filters with explicit Unknown handling and responsive translated controls.
+- Capture demographic values into immutable snapshots without retaining game pointers or changing command policy.
+- Add transient Area, Location data, and exact observed Worldspace filters using copied current, last-observed, or unavailable spatial evidence.
+- Keep disabled and dead NPCs discoverable by their retained spatial evidence, and disambiguate duplicate custom-worldspace names by EditorID or FormID.
+- Preserve the published runtime, save, quest, command, Papyrus, ESP, dependency, and packaging behavior throughout the checkpoint.
+- Do not create an intermediate runtime archive; the next archive is the final 1.1.0 test candidate.
+- Add bounded template-aware Faction and Base Keyword filters using shared immutable per-base projections.
+- Preserve every read-only Papyrus API v1 entry point and add API v2 demographics, safety flags, spatial identity, and indexed Faction/Base Keyword observations.
+- Finalize the 408-key English catalog, deterministic translator worksheet, and public API/translation/compatibility guides.
+- Close the final static audit: require every used SMF export, synchronize version contracts, replace Source-ZIP release tooling with Main/Translations plus a separate GitHub source manifest, correct the EditorID contract test, and update current release/API documentation.
+
+## 1.0.2+layout.5 - Minimal complete baseline alignment correction
+
+- Restore the untouched 1.0.2 table navigation and remove every positioning workaround from layout.1 through layout.3.
+- Apply framed-text baseline normalization to all six visible labels and the blank spacer above Clear Filters so every control shares one vertical baseline.
+
+## 1.0.2+layout.4 - Framed-label baseline correction
+
+- Normalize every affected filter label with SKSE Menu Framework's `AlignTextToFramePadding` API before drawing it.
+- Remove the ineffective cursor-Y workaround while preserving responsive wrapping, public version 1.0.2, and all non-layout behavior.
+
+## 1.0.2+layout.3 - Runtime cursor-anchor alignment correction
+
+- Capture the first cell's row Y-position and restore that exact position for every later cell in each affected responsive row.
+- Preserve public version 1.0.2 and all behavior, sizing, translations, saves, Papyrus, ESP, commands, tracking, and dependencies.
+
+## 1.0.2+layout.2 - Uniform responsive-cell alignment correction
+
+- Route every control in the primary-filter and sort/action tables through the same explicit responsive row/column placement helper.
+- Preserve public version 1.0.2, narrow-width wrapping, behavior, translations, saves, Papyrus, ESP records, commands, tracking, and dependencies.
+
+## 1.0.2+layout.1 - Search filter baseline correction
+
+- Align the first control in the primary-filter and sort/action rows with every following control by explicitly starting and addressing each table row.
+- Preserve the public 1.0.2 version and all filtering semantics, translations, saves, settings, Papyrus, ESP records, commands, tracking, dependencies, and runtime support.
+
 ## 1.0.2 - Compact filter maintenance release
 
 - Compact the Search filter panel around consistent responsive rows so more results remain visible.
 - Keep Plugin, Location, and Search Content controls together; keep Sort, Direction, and Clear Filters together.
-- Align the Plugin, Location, Search Content, Sort, Direction, and Clear Filters controls consistently.
 - Preserve all filtering semantics, saves, settings, commands, tracking, Papyrus, ESP records, translations, and runtime support.
 - Carry forward the beta.2 and beta.3 dependency, archive, and Papyrus privacy hardening.
 
@@ -405,7 +521,7 @@ Runtime behavior remains unconfirmed until this exact beta.15 command checkpoint
 - Removed all Whereabouts-specific gameplay keybind code and configuration.
 - Improved SMF-native readability with centered confirmations, clearer spacing and section titles, full-width two-column commands, grouped details, and a selected-NPC identity header above the scrolling details area.
 
-## 1.1.0 - Unreleased
+## Early 1.1.0 roadmap (historical)
 
 - Ranked normal name searches by exact, prefix, word-prefix, and substring relevance.
 - Kept live results compact at 10 and expanded submitted searches to as many as 128, with an accurate total-match count.

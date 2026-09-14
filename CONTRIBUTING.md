@@ -16,7 +16,7 @@ Follow [Translating Whereabouts](docs/TRANSLATING.md). Translate the text on the
 
 ## Papyrus API and Code
 
-The public API is intentionally read-only. Start with the [Papyrus API documentation](docs/PAPYRUS_API.md) and explain the real compatibility use case before proposing a new function.
+The public API is intentionally read-only. Start with the [Papyrus API documentation](docs/API.md) and explain the real compatibility use case before proposing a new function.
 
 Build instructions and dependency pins are in [README.md](README.md) and [docs/DEPENDENCIES.md](docs/DEPENDENCIES.md). Runtime changes should include focused regression coverage and should not change the save format, quest layout, or supported runtimes without an explicit compatibility plan.
 

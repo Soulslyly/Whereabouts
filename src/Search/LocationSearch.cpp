@@ -77,11 +77,21 @@ namespace whereabouts
             } else if (!ContainsFolded(row.searchPlugin, query.plugin)) {
                 continue;
             }
-            if (query.context &&
-                !ContainsFolded(row.searchContext, query.context) &&
-                !ContainsFolded(row.searchWorldspace, query.context) &&
-                !ContainsFolded(row.searchName, query.context) &&
-                !ContainsFolded(row.searchEditorID, query.context)) continue;
+            if (query.context) {
+                if (query.contextExact) {
+                    const auto exact =
+                        SearchTextEqualsNoexcept(row.displayName, *query.context) ||
+                        SearchTextEqualsNoexcept(row.editorID, *query.context) ||
+                        SearchTextEqualsNoexcept(row.containingLocation, *query.context) ||
+                        SearchTextEqualsNoexcept(row.worldspace, *query.context);
+                    if (!exact) continue;
+                } else if (!ContainsFolded(row.searchContext, query.context) &&
+                           !ContainsFolded(row.searchWorldspace, query.context) &&
+                           !ContainsFolded(row.searchName, query.context) &&
+                           !ContainsFolded(row.searchEditorID, query.context)) {
+                    continue;
+                }
+            }
             const auto rank = MatchRank(row, *parsed);
             if (rank != kNoMatch) matches.push_back({&row, rank});
         }

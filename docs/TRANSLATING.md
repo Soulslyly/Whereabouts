@@ -1,8 +1,8 @@
 # Translating Whereabouts
 
-Use `Interface/Translations/Whereabouts_ENGLISH.txt` as the source template.
+Use `Interface/Translations/Whereabouts_ENGLISH.txt` as the runtime-file source template. For spreadsheet work, use `translations/Whereabouts_1.1.0_Translator_Worksheet.tsv`.
 
-The 1.0.2 template contains the menu, status, maintenance, warning, search-recovery, tracking-recovery and tracked-death notification text. NPC, cell and location names come from the game and their source mods. `Whereabouts` is a proper name; tracked quest objectives use each NPC's alias name. The restored journal description is embedded in `Whereabouts.esp`, not in this menu translation file; translating that description requires a translated plugin. Low-level third-party error details may remain in English.
+The 1.1.0 English catalog contains the menu, all filter labels and help, status, maintenance, warning, search-recovery, tracking-recovery and tracked-death notification text. NPC, race, faction, keyword, cell and location names come from the game and their source mods. `Whereabouts` is a proper name; tracked quest objectives use each NPC's alias name. The journal description is embedded in `Whereabouts.esp`, not in this menu translation file; translating that description requires a translated plugin. Low-level third-party error details may remain in English.
 
 Each row has this exact structure:
 
@@ -11,6 +11,8 @@ $Whereabouts_InternalKey<TAB>English text shown in the menu
 ```
 
 Only translate the text on the right side of the tab. Do not translate, rename, reorder, or remove the `$Whereabouts_*` key on the left. The wide gap visible in some editors is one tab character required by Skyrim, not accidental spacing.
+
+The UTF-8 worksheet has four columns: Internal key, English source, blank Translation, and required Placeholders. Fill only the Translation column. The worksheet is not installed by Skyrim; copy completed values back into the right side of a runtime translation file. Regenerate it with `tools/generate-translator-worksheet.ps1` after intentionally changing the English catalog.
 
 Keep all `{}` placeholders exactly as they appear. They are replaced with names, counts, IDs, or status text while the menu is running. Do not add tabs or line breaks inside a value.
 

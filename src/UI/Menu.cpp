@@ -171,10 +171,12 @@ namespace whereabouts::ui
     {
         SearchFilters filters;
         filters.selectedPlugins = selectedPluginFilters_;
-        if (selectedPluginFilters_.empty() && pluginFilter_.front() != '\0') {
-            filters.plugin = pluginFilter_.data();
+        if (!exactLocationFilter_.empty()) {
+            filters.location = exactLocationFilter_;
+            filters.locationExact = true;
+        } else if (locationFilter_.front() != '\0') {
+            filters.location = locationFilter_.data();
         }
-        if (locationFilter_.front() != '\0') filters.location = locationFilter_.data();
         if (aliveFilter_ != 0) filters.alive = aliveFilter_ == 1;
         if (enabledFilter_ != 0) filters.enabled = enabledFilter_ == 1;
         if (teammateFilter_ != 0) filters.teammate = teammateFilter_ == 1;
@@ -182,11 +184,83 @@ namespace whereabouts::ui
             filters.potentialFollower = potentialFollowerFilter_ == 1;
         }
         if (loadedFilter_ != 0) filters.loaded = loadedFilter_ == 1;
+        if (unknownRaceOnly_) {
+            filters.unknownRaceOnly = true;
+        } else if (!raceFilter_.empty()) {
+            filters.race = raceFilter_;
+        }
+        switch (sexFilter_) {
+        case 1:
+            filters.sex = NpcSex::Male;
+            break;
+        case 2:
+            filters.sex = NpcSex::Female;
+            break;
+        case 3:
+            filters.sex = NpcSex::Unknown;
+            break;
+        default:
+            break;
+        }
+        const auto knownBooleanFilter = [](int value) {
+            switch (value) {
+            case 1: return KnownBooleanFilter::Yes;
+            case 2: return KnownBooleanFilter::No;
+            case 3: return KnownBooleanFilter::Unknown;
+            default: return KnownBooleanFilter::Any;
+            }
+        };
+        filters.essential = knownBooleanFilter(essentialFilter_);
+        filters.protectedActor = knownBooleanFilter(protectedFilter_);
+        switch (spatialKindFilter_) {
+        case 1:
+            filters.spatialKind = SpatialKind::Interior;
+            break;
+        case 2:
+            filters.spatialKind = SpatialKind::Exterior;
+            break;
+        case 3:
+            filters.spatialKind = SpatialKind::Unknown;
+            break;
+        default:
+            break;
+        }
+        switch (spatialFreshnessFilter_) {
+        case 1:
+            filters.spatialFreshness = SpatialFreshness::Current;
+            break;
+        case 2:
+            filters.spatialFreshness = SpatialFreshness::LastObserved;
+            break;
+        case 3:
+            filters.spatialFreshness = SpatialFreshness::Unavailable;
+            break;
+        default:
+            break;
+        }
+        if (unknownWorldspaceOnly_) {
+            filters.unknownWorldspaceOnly = true;
+        } else if (worldspaceFilterFormID_ != 0) {
+            filters.worldspaceFormID = worldspaceFilterFormID_;
+        }
+        if (unknownFactionsOnly_) {
+            filters.unknownFactionsOnly = true;
+        } else if (factionFilter_) {
+            filters.faction = factionFilter_;
+        }
+        if (unknownBaseKeywordsOnly_) {
+            filters.unknownBaseKeywordsOnly = true;
+        } else if (baseKeywordFilter_) {
+            filters.baseKeyword = baseKeywordFilter_;
+        }
         filters.favoritesOnly = favoritesOnly_;
         filters.trackedOnly = trackedOnly_;
         filters.sameLocationOnly = sameLocationOnly_;
         filters.includeGeneric = includeGeneric_;
         filters.genericOnly = genericOnly_;
+        if (!settings_.enableAdvancedFilters) {
+            ClearAdvancedSearchFilters(filters);
+        }
         return filters;
     }
 
@@ -294,10 +368,12 @@ namespace whereabouts::ui
         LocationSearchQuery query;
         query.text = mainSearch ? searchText_.data() : locationSearchText_.data();
         if (mainSearch) query.selectedPlugins = selectedPluginFilters_;
-        if (mainSearch && selectedPluginFilters_.empty() && pluginFilter_.front() != '\0') {
-            query.plugin = pluginFilter_.data();
+        if (mainSearch && !exactLocationFilter_.empty()) {
+            query.context = exactLocationFilter_;
+            query.contextExact = true;
+        } else if (mainSearch && locationFilter_.front() != '\0') {
+            query.context = locationFilter_.data();
         }
-        if (mainSearch && locationFilter_.front() != '\0') query.context = locationFilter_.data();
         query.limit = ResultLimit(run, settings_);
         query.unlimitedResults = ResultsUnlimited(run, settings_);
         if (!mainSearch) {
@@ -325,6 +401,12 @@ namespace whereabouts::ui
         if (sessionResetRequested_.exchange(false)) {
             tracking_.SetUninstallLocked(false);
             ResetFiltersToDefaults();
+            favoriteListSearch_.fill('\0');
+            recentListSearch_.fill('\0');
+            trackedListSearch_.fill('\0');
+            favoriteListPagination_ = {};
+            recentListPagination_ = {};
+            trackedListPagination_ = {};
             selected_.reset();
             selectedLocation_.reset();
             pendingLocationTravel_.reset();
@@ -665,7 +747,7 @@ namespace whereabouts::ui
         SetLocationStatus({});
     }
 
-    void Menu::RenderDetails()
+    void Menu::RenderDetails(bool scrollWithPage)
     {
         if (selectedLocation_) {
             RenderLocationDetails();
@@ -680,6 +762,12 @@ namespace whereabouts::ui
             return;
         }
 
+        if (scrollWithPage || ImGuiMCP::BeginChild(
+                "##WhereaboutsSelectedNpcHost",
+                {0.0F, 0.0F},
+                ImGuiMCP::ImGuiChildFlags_None,
+                ImGuiMCP::ImGuiWindowFlags_NoScrollbar |
+                    ImGuiMCP::ImGuiWindowFlags_NoScrollWithMouse)) {
         const auto& npc = *selected_;
         const auto favorites = savedNpcs_.Favorites();
         const bool isFavorite = npc.StableReference().IsPersistable() &&
@@ -728,12 +816,12 @@ namespace whereabouts::ui
                                    std::string(sourcePlugin).c_str());
 
         ImGuiMCP::Spacing();
-        if (ImGuiMCP::BeginChild(
-                "##WhereaboutsSelectedBody",
-                {0.0F, 0.0F},
-                ImGuiMCP::ImGuiChildFlags_Border)) {
-            ImGuiMCP::SeparatorText(TranslateText("Commands"));
-            ImGuiMCP::Spacing();
+        const auto commandsHeading = std::format(
+                "{}###WhereaboutsSelectedCommands", TranslateText("Commands"));
+        if (ImGuiMCP::CollapsingHeader(
+                    commandsHeading.c_str(),
+                    ImGuiMCP::ImGuiTreeNodeFlags_DefaultOpen)) {
+                ImGuiMCP::Spacing();
             const std::array commands{
                 CommandKind::Travel,
                 CommandKind::Bring,
@@ -809,9 +897,21 @@ namespace whereabouts::ui
                 ImGuiMCP::Spacing();
                 ImGuiMCP::TextWrapped("%s", status.c_str());
             }
+            }
 
             ImGuiMCP::Spacing();
-            if (ImGuiMCP::CollapsingHeader(TranslateText("NPC Details"))) {
+        const auto detailsHeading = std::format(
+                "{}###WhereaboutsSelectedNpcDetails", TranslateText("NPC Details"));
+        if (ImGuiMCP::CollapsingHeader(detailsHeading.c_str())) {
+            const float selectedDetailsHeight = scrollWithPage ?
+                ImGuiMCP::GetTextLineHeightWithSpacing() * 10.0F :
+                SelectedDetailsViewportHeight(
+                    ImGuiMCP::GetContentRegionAvail().y,
+                    ImGuiMCP::GetFrameHeightWithSpacing());
+            if (ImGuiMCP::BeginChild(
+                    "##WhereaboutsSelectedNpcDetailsBody",
+                    {0.0F, selectedDetailsHeight},
+                    ImGuiMCP::ImGuiChildFlags_None)) {
                 const auto sourceLabel = TargetSourceLabel(selectedSource_);
                 const auto reference = std::format(
                     "{}:{:06X}",
@@ -855,7 +955,9 @@ namespace whereabouts::ui
                     row(TranslateText("Base EditorID"), npc.baseEditorID.empty() ?
                         TranslateText("Unavailable") : npc.baseEditorID);
                     row(TranslateText("Race"), npc.race.empty() ? TranslateText("Unknown") : npc.race);
-                    row(TranslateText("Sex"), npc.sex.empty() ? TranslateText("Unknown") : npc.sex);
+                    const auto* sex = npc.sex == NpcSex::Male ? TranslateText("Male") :
+                        npc.sex == NpcSex::Female ? TranslateText("Female") : TranslateText("Unknown");
+                    row(TranslateText("Sex"), sex);
                     ImGuiMCP::EndTable();
                 }
 
@@ -918,8 +1020,10 @@ namespace whereabouts::ui
                     ImGuiMCP::EndTable();
                 }
             }
+            ImGuiMCP::EndChild();
+            }
         }
-        ImGuiMCP::EndChild();
+        if (!scrollWithPage) ImGuiMCP::EndChild();
 
     }
 
@@ -1761,9 +1865,66 @@ namespace whereabouts::ui
         return found != source->catalog->end() ? std::optional{*found} : std::nullopt;
     }
 
-    void Menu::RenderSavedEntries(const std::vector<SavedNpcEntry>& entries, TargetSource source)
+    bool Menu::RenderSavedListSearch(
+        std::array<char, 128>& query,
+        ListPaginationState& pagination,
+        const char* id,
+        bool actionRendered,
+        float toolbarWidth,
+        float actionWidth)
+    {
+        const auto* style = ImGuiMCP::GetStyle();
+        const float spacing = style ? style->ItemSpacing.x : 8.0F;
+        const auto placement = actionRendered ? ChooseListSearchPlacement(
+            toolbarWidth, actionWidth, 180.0F, spacing) : ListSearchPlacement::NextLine;
+        if (actionRendered && placement == ListSearchPlacement::BesideAction) {
+            ImGuiMCP::SameLine();
+        }
+        const auto available = placement == ListSearchPlacement::BesideAction ?
+            (std::max)(1.0F, toolbarWidth - actionWidth - spacing) :
+            (std::max)(1.0F, ImGuiMCP::GetContentRegionAvail().x);
+        ImGuiMCP::SetNextItemWidth((std::min)(360.0F, available));
+        if (!ImGuiMCP::InputTextWithHint(id, TranslateText("Search list..."), query.data(), query.size())) {
+            return false;
+        }
+        ResetListPaginationForQuery(pagination);
+        return true;
+    }
+
+    void Menu::RenderSavedListPagination(
+        const char* id,
+        std::size_t filteredCount,
+        std::size_t pageCapacity,
+        ListPaginationState& pagination)
+    {
+        if (filteredCount == 0) return;
+        const auto page = VisibleSavedListPage(filteredCount, pageCapacity, pagination);
+        ImGuiMCP::PushID(id);
+        ImGuiMCP::BeginDisabled(pagination.showAll || page.page == 0);
+        if (ImGuiMCP::Button(TranslateText("Previous"))) --pagination.page;
+        ImGuiMCP::EndDisabled();
+        ImGuiMCP::SameLine();
+        ImGuiMCP::BeginDisabled(pagination.showAll || page.page + 1 >= page.pageCount);
+        if (ImGuiMCP::Button(TranslateText("Next"))) ++pagination.page;
+        ImGuiMCP::EndDisabled();
+        ImGuiMCP::SameLine();
+        const auto pageLabel = TranslateFormat("Page {} of {}", page.page + 1, page.pageCount);
+        ImGuiMCP::TextUnformatted(pageLabel.c_str());
+        ImGuiMCP::SameLine();
+        if (ImGuiMCP::Checkbox(TranslateText("Show all"), &pagination.showAll)) {
+            pagination.page = 0;
+        }
+        ImGuiMCP::PopID();
+    }
+
+    void Menu::RenderSavedEntries(
+        const std::vector<SavedNpcEntry>& entries,
+        TargetSource source,
+        std::string_view query,
+        ListPaginationState& pagination)
     {
         if (entries.empty()) {
+            NormalizeListPagination(pagination, 0, 1, settings_.resultDensity);
             ImGuiMCP::TextUnformatted(TranslateText("No entries."));
             return;
         }
@@ -1781,12 +1942,6 @@ namespace whereabouts::ui
         }
         const auto* cleanupStyle = ImGuiMCP::GetStyle();
         const float cleanupPadding = cleanupStyle ? cleanupStyle->FramePadding.x : 4.0F;
-        const float cleanupGap = cleanupStyle ? cleanupStyle->ItemSpacing.x : 8.0F;
-        const auto cleanupWidth = ImGuiMCP::CalcTextSize(TranslateText("Remove Unavailable Entries")).x +
-            cleanupPadding * 2.0F;
-        const auto clearWidth = ImGuiMCP::CalcTextSize(TranslateText(source == TargetSource::Favorite ?
-            "Clear Favorites" : "Clear Recent")).x + cleanupPadding * 2.0F;
-        if (ImGuiMCP::GetContentRegionAvail().x >= cleanupWidth + clearWidth + cleanupGap) ImGuiMCP::SameLine();
         ImGuiMCP::BeginDisabled(unavailable.empty());
         const bool removeUnavailable = ImGuiMCP::Button(TranslateText("Remove Unavailable Entries"));
         ImGuiMCP::EndDisabled();
@@ -1814,10 +1969,32 @@ namespace whereabouts::ui
             ImGuiMCP::TextUnformatted(savedEntriesStatus_.c_str());
         }
 
+        std::vector<SavedListSearchDocument> searchDocuments;
+        searchDocuments.reserve(entries.size());
+        for (const auto& entry : entries) {
+            const auto snapshot = FindSnapshot(entry.identity);
+            searchDocuments.push_back(snapshot ? SavedListDocument(*snapshot) : SavedListDocument(entry));
+        }
+        const auto filteredRows = FilterSavedListRows(searchDocuments, query);
+        const bool showSecondary = ShowsSecondaryResultMetadata(settings_.resultDensity);
+        const float measuredLineHeight = ImGuiMCP::GetTextLineHeightWithSpacing();
+        const float rowHeight = measuredLineHeight * (showSecondary ? 2.0F : 1.0F);
+        const auto pageCapacity = SavedListPageCapacity(
+            settings_.resultDensity, measuredLineHeight * 10.0F, rowHeight);
+        NormalizeListPagination(
+            pagination, filteredRows.size(), pageCapacity, settings_.resultDensity);
+        if (filteredRows.empty()) {
+            ImGuiMCP::TextUnformatted(TranslateText("No matching entries."));
+            return;
+        }
+        const auto page = VisibleSavedListPage(filteredRows.size(), pageCapacity, pagination);
+
         const auto pushedColors = PushThemeSafeRowColors();
+        const bool superCompact = IsSuperCompactResultDensity(settings_.resultDensity);
         if (!ImGuiMCP::BeginTable(
-                "##WhereaboutsSavedEntries",
-                4,
+                superCompact ? "##WhereaboutsSuperCompactSavedEntries" :
+                               "##WhereaboutsSavedEntries",
+                superCompact ? 3 : 4,
                 ImGuiMCP::ImGuiTableFlags_RowBg | ImGuiMCP::ImGuiTableFlags_BordersInnerH |
                     ImGuiMCP::ImGuiTableFlags_SizingStretchProp |
                     ImGuiMCP::ImGuiTableFlags_Resizable |
@@ -1826,18 +2003,22 @@ namespace whereabouts::ui
             return;
         }
         ImGuiMCP::TableSetupColumn(
-            TranslateText("NPC"), ImGuiMCP::ImGuiTableColumnFlags_WidthStretch, 0.43F);
-        ImGuiMCP::TableSetupColumn(
-            TranslateText("Status"), ImGuiMCP::ImGuiTableColumnFlags_WidthStretch, 0.12F);
-        ImGuiMCP::TableSetupColumn(
-            TranslateText("Location"), ImGuiMCP::ImGuiTableColumnFlags_WidthStretch, 0.31F);
+            TranslateText("NPC"), ImGuiMCP::ImGuiTableColumnFlags_WidthStretch,
+            superCompact ? 0.70F : 0.43F);
+        if (superCompact) {
+            ImGuiMCP::TableSetupColumn(
+                TranslateText("FormID"), ImGuiMCP::ImGuiTableColumnFlags_WidthFixed, 110.0F);
+        } else {
+            ImGuiMCP::TableSetupColumn(
+                TranslateText("Status"), ImGuiMCP::ImGuiTableColumnFlags_WidthStretch, 0.12F);
+            ImGuiMCP::TableSetupColumn(
+                TranslateText("Location"), ImGuiMCP::ImGuiTableColumnFlags_WidthStretch, 0.31F);
+        }
         ImGuiMCP::TableSetupColumn(TranslateText("Action"), ImGuiMCP::ImGuiTableColumnFlags_WidthFixed, 90.0F);
         ImGuiMCP::TableHeadersRow();
 
-        const bool showSecondary = ShowsSecondaryResultMetadata(settings_.resultDensity);
-        const float rowHeight = ImGuiMCP::GetTextLineHeightWithSpacing() *
-            (showSecondary ? 2.0F : 1.0F);
-        for (std::size_t index = 0; index < entries.size(); ++index) {
+        for (std::size_t pageIndex = 0; pageIndex < page.count; ++pageIndex) {
+            const auto index = filteredRows[page.first + pageIndex];
             const auto& entry = entries[index];
             const auto snapshot = FindSnapshot(entry.identity);
             const bool selected = snapshot && selected_ &&
@@ -1853,6 +2034,18 @@ namespace whereabouts::ui
             const auto name = entry.lastKnownName.empty() ? entry.identity.plugin : entry.lastKnownName;
             const auto nameWidth = ImGuiMCP::GetContentRegionAvail().x;
             ImGuiMCP::TextUnformatted(name.c_str());
+            if (superCompact) {
+                OverflowTooltip(name, nameWidth);
+                static_cast<void>(ImGuiMCP::TableSetColumnIndex(1));
+                const auto formIdHit = BeginRowInteractionCell(
+                    "##savedFormIdCell", rowHeight);
+                interaction.Include(formIdHit.hovered, formIdHit.activated);
+                if (snapshot) {
+                    ImGuiMCP::Text("%08X", snapshot->ReferenceRuntimeID());
+                } else {
+                    ImGuiMCP::Text("%06X", entry.identity.localID);
+                }
+            } else {
             const auto identity = snapshot ?
                 std::format("{} / {:08X}",
                     snapshot->SourcePlugin().empty() ? "Dynamic" : snapshot->SourcePlugin(),
@@ -1913,9 +2106,10 @@ namespace whereabouts::ui
             } else {
                 ImGuiMCP::TextUnformatted("-");
             }
+            }
             ApplyUnifiedRowBackground(interaction, selected);
             if (interaction.activated && snapshot) SelectSnapshot(*snapshot, source);
-            static_cast<void>(ImGuiMCP::TableSetColumnIndex(3));
+            static_cast<void>(ImGuiMCP::TableSetColumnIndex(superCompact ? 2 : 3));
             if (ImGuiMCP::Button(TranslateText("Remove"))) {
                 if (source == TargetSource::Favorite) {
                     static_cast<void>(savedNpcs_.RemoveFavorite(entry.identity));
@@ -1931,6 +2125,11 @@ namespace whereabouts::ui
         }
         ImGuiMCP::EndTable();
         if (pushedColors > 0) ImGuiMCP::PopStyleColor(pushedColors);
+        RenderSavedListPagination(
+            source == TargetSource::Favorite ? "##FavoritesPagination" : "##RecentPagination",
+            filteredRows.size(),
+            pageCapacity,
+            pagination);
     }
 
     void Menu::SaveSettings()
@@ -1945,17 +2144,44 @@ namespace whereabouts::ui
         settingsStatus_ = saved ? std::string{} : TranslateFormat("Settings error: {}", saved.error());
     }
 
+    void Menu::ResetAdvancedFilters()
+    {
+        raceFilter_.clear();
+        unknownRaceOnly_ = false;
+        sexFilter_ = 0;
+        essentialFilter_ = 0;
+        protectedFilter_ = 0;
+        spatialKindFilter_ = 0;
+        spatialFreshnessFilter_ = 0;
+        worldspaceFilterFormID_ = 0;
+        unknownWorldspaceOnly_ = false;
+        worldspaceFilterLabel_.clear();
+        factionFilter_.reset();
+        unknownFactionsOnly_ = false;
+        factionFilterLabel_.clear();
+        baseKeywordFilter_.reset();
+        unknownBaseKeywordsOnly_ = false;
+        baseKeywordFilterLabel_.clear();
+        factionOptionSearch_.fill('\0');
+        keywordOptionSearch_.fill('\0');
+        visibleFactionOptions_ = {};
+        visibleKeywordOptions_ = {};
+        factionOptionResultsDirty_ = true;
+        keywordOptionResultsDirty_ = true;
+    }
+
     void Menu::ResetFiltersToDefaults()
     {
         pluginFilter_.fill('\0');
         selectedPluginFilters_.clear();
-        pluginSuggestionsDismissed_ = false;
         locationFilter_.fill('\0');
+        exactLocationFilter_.clear();
         aliveFilter_ = 0;
         enabledFilter_ = 0;
         teammateFilter_ = 0;
         potentialFollowerFilter_ = 0;
         loadedFilter_ = 0;
+        ResetAdvancedFilters();
         favoritesOnly_ = false;
         trackedOnly_ = false;
         sameLocationOnly_ = false;

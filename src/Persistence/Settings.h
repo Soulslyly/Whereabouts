@@ -20,7 +20,8 @@ namespace whereabouts
     enum class ResultDensity
     {
         Detailed,
-        Compact
+        Compact,
+        SuperCompact
     };
 
     enum class TranslationLanguage
@@ -59,7 +60,9 @@ namespace whereabouts
         TranslationLanguage translationLanguage{TranslationLanguage::FollowSkyrim};
         std::uint32_t liveResultLimit{50};
         std::uint32_t fullResultLimit{500};
-        bool showAllResults{false};
+        bool showAllResults{true};
+        bool enableAdvancedFilters{true};
+        bool showActiveFilterNames{true};
 
         void Normalize() noexcept;
     };

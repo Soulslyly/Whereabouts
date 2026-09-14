@@ -9,14 +9,27 @@ namespace whereabouts::ui
     {
         RefreshForIndexGeneration();
         if (RenderUninstallLockedPage()) return;
+        if (ImGuiMCP::BeginChild(
+                "##WhereaboutsFavoritesPageScroll",
+                {0.0F, 0.0F},
+                ImGuiMCP::ImGuiChildFlags_None)) {
         ImGuiMCP::SeparatorText(TranslateText("Favorites"));
         ImGuiMCP::Spacing();
         SyncSelectedTarget();
         const auto entries = savedNpcs_.Favorites();
-        if (!entries.empty() && ImGuiMCP::Button(TranslateText("Clear Favorites"))) {
+        const auto toolbarWidth = ImGuiMCP::GetContentRegionAvail().x;
+        const auto* style = ImGuiMCP::GetStyle();
+        const auto clearWidth = ImGuiMCP::CalcTextSize(TranslateText("Clear Favorites")).x +
+            (style ? style->FramePadding.x * 2.0F : 8.0F);
+        const bool clearRendered = !entries.empty();
+        if (clearRendered && ImGuiMCP::Button(TranslateText("Clear Favorites"))) {
             ImGuiMCP::OpenPopup(TranslateText("Clear all favorites?"));
         }
-        RenderSavedEntries(entries, TargetSource::Favorite);
+        RenderSavedListSearch(
+            favoriteListSearch_, favoriteListPagination_, "##FavoriteListSearch",
+            clearRendered, toolbarWidth, clearWidth);
+        RenderSavedEntries(
+            entries, TargetSource::Favorite, favoriteListSearch_.data(), favoriteListPagination_);
         CenterNextModal();
         if (ImGuiMCP::BeginPopupModal(
                 TranslateText("Clear all favorites?"),
@@ -25,6 +38,7 @@ namespace whereabouts::ui
             ImGuiMCP::TextUnformatted(TranslateText("Remove every favorite from this save?"));
             if (ImGuiMCP::Button(TranslateText("Clear"))) {
                 savedNpcs_.ClearFavorites();
+                ResetListPaginationForQuery(favoriteListPagination_);
                 ImGuiMCP::CloseCurrentPopup();
             }
             ImGuiMCP::SameLine();
@@ -33,8 +47,10 @@ namespace whereabouts::ui
         }
         if (selected_) {
             ImGuiMCP::Separator();
-            RenderDetails();
+            RenderDetails(true);
         }
+        }
+        ImGuiMCP::EndChild();
         RenderRootModals();
     }
 }

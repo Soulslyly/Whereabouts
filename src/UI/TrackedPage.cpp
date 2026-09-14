@@ -15,6 +15,11 @@ namespace whereabouts::ui
     {
         RefreshForIndexGeneration();
         if (RenderUninstallLockedPage()) return;
+        if (ImGuiMCP::BeginChild(
+                "##WhereaboutsTrackedPageScroll",
+                {0.0F, 0.0F},
+                ImGuiMCP::ImGuiChildFlags_None)) {
+        [&] {
         ImGuiMCP::SeparatorText(TranslateText("Tracked NPCs"));
         ImGuiMCP::Spacing();
         SyncSelectedTarget();
@@ -32,6 +37,10 @@ namespace whereabouts::ui
         }
 
         const bool trackingBusy = tracking_.Busy();
+        const auto toolbarWidth = ImGuiMCP::GetContentRegionAvail().x;
+        const auto* toolbarStyle = ImGuiMCP::GetStyle();
+        const auto clearWidth = ImGuiMCP::CalcTextSize(TranslateText("Clear All Markers")).x +
+            (toolbarStyle ? toolbarStyle->FramePadding.x * 2.0F : 8.0F);
         ImGuiMCP::BeginDisabled(tracked.empty() || trackingBusy);
         if (ImGuiMCP::Button(TranslateText("Clear All Markers"))) {
             ImGuiMCP::OpenPopup(TranslateText("Clear all tracking markers?"));
@@ -42,6 +51,9 @@ namespace whereabouts::ui
                 TranslateText("Tracking is updating."),
                 ImGuiMCP::ImGuiHoveredFlags_AllowWhenDisabled);
         }
+        RenderSavedListSearch(
+            trackedListSearch_, trackedListPagination_, "##TrackedListSearch",
+            true, toolbarWidth, clearWidth);
 
         CenterNextModal();
         if (ImGuiMCP::BeginPopupModal(
@@ -64,6 +76,25 @@ namespace whereabouts::ui
             ImGuiMCP::EndPopup();
         }
 
+        std::vector<SavedListSearchDocument> trackedDocuments;
+        trackedDocuments.reserve(tracked.size());
+        for (const auto& npc : tracked) trackedDocuments.push_back(SavedListDocument(npc));
+        std::vector<SavedListSearchDocument> missingDocuments;
+        missingDocuments.reserve(missingBodies.size());
+        for (const auto& entry : missingBodies) missingDocuments.push_back(SavedListDocument(entry));
+        const auto trackedRows = FilterSavedListRows(trackedDocuments, trackedListSearch_.data());
+        const auto missingRows = FilterSavedListRows(missingDocuments, trackedListSearch_.data());
+        const auto filteredCount = trackedRows.size() + missingRows.size();
+        const bool showSecondary = ShowsSecondaryResultMetadata(settings_.resultDensity);
+        const float measuredLineHeight = ImGuiMCP::GetTextLineHeightWithSpacing();
+        const float rowHeight = measuredLineHeight * (showSecondary ? 2.0F : 1.0F);
+        const auto pageCapacity = SavedListPageCapacity(
+            settings_.resultDensity, measuredLineHeight * 10.0F, rowHeight);
+        NormalizeListPagination(
+            trackedListPagination_, filteredCount, pageCapacity, settings_.resultDensity);
+        const auto page = VisibleSavedListPage(filteredCount, pageCapacity, trackedListPagination_);
+        const auto pageEnd = page.first + page.count;
+
         ImGuiMCP::Spacing();
         if (tracked.empty() && missingBodies.empty()) {
             ImGuiMCP::TextUnformatted(TranslateText("No tracked NPCs."));
@@ -73,29 +104,40 @@ namespace whereabouts::ui
                 tracked.size(),
                 missingBodies.size());
             ImGuiMCP::TextUnformatted(capacity.c_str());
+            if (filteredCount == 0) {
+                ImGuiMCP::TextUnformatted(TranslateText("No matching entries."));
+            } else {
             const auto pushedColors = PushThemeSafeRowColors();
+            const bool superCompact = IsSuperCompactResultDensity(
+                settings_.resultDensity);
             if (ImGuiMCP::BeginTable(
-                    "##WhereaboutsTrackedRows",
-                    4,
+                    superCompact ? "##WhereaboutsSuperCompactTrackedRows" :
+                                   "##WhereaboutsTrackedRows",
+                    superCompact ? 3 : 4,
                     ImGuiMCP::ImGuiTableFlags_RowBg |
                         ImGuiMCP::ImGuiTableFlags_BordersInnerH |
                         ImGuiMCP::ImGuiTableFlags_SizingStretchProp |
                         ImGuiMCP::ImGuiTableFlags_Resizable |
                         ImGuiMCP::ImGuiTableFlags_Reorderable)) {
                 ImGuiMCP::TableSetupColumn(
-                    TranslateText("NPC"), ImGuiMCP::ImGuiTableColumnFlags_WidthStretch, 0.43F);
-                ImGuiMCP::TableSetupColumn(
-                    TranslateText("Status"), ImGuiMCP::ImGuiTableColumnFlags_WidthStretch, 0.12F);
-                ImGuiMCP::TableSetupColumn(
-                    TranslateText("Location"), ImGuiMCP::ImGuiTableColumnFlags_WidthStretch, 0.31F);
+                    TranslateText("NPC"), ImGuiMCP::ImGuiTableColumnFlags_WidthStretch,
+                    superCompact ? 0.70F : 0.43F);
+                if (superCompact) {
+                    ImGuiMCP::TableSetupColumn(
+                        TranslateText("FormID"), ImGuiMCP::ImGuiTableColumnFlags_WidthFixed, 110.0F);
+                } else {
+                    ImGuiMCP::TableSetupColumn(
+                        TranslateText("Status"), ImGuiMCP::ImGuiTableColumnFlags_WidthStretch, 0.12F);
+                    ImGuiMCP::TableSetupColumn(
+                        TranslateText("Location"), ImGuiMCP::ImGuiTableColumnFlags_WidthStretch, 0.31F);
+                }
                 ImGuiMCP::TableSetupColumn(
                     TranslateText("Action"), ImGuiMCP::ImGuiTableColumnFlags_WidthFixed, 110.0F);
                 ImGuiMCP::TableHeadersRow();
 
-                const bool showSecondary = ShowsSecondaryResultMetadata(settings_.resultDensity);
-                const float rowHeight = ImGuiMCP::GetTextLineHeightWithSpacing() *
-                    (showSecondary ? 2.0F : 1.0F);
-                for (const auto& npc : tracked) {
+                for (std::size_t filteredIndex = 0; filteredIndex < trackedRows.size(); ++filteredIndex) {
+                    if (filteredIndex < page.first || filteredIndex >= pageEnd) continue;
+                    const auto& npc = tracked[trackedRows[filteredIndex]];
                     ImGuiMCP::PushID(static_cast<int>(npc.ReferenceRuntimeID()));
                     ImGuiMCP::TableNextRow(0, rowHeight);
                     RowInteraction interaction;
@@ -106,6 +148,24 @@ namespace whereabouts::ui
                     const bool selected = selected_ &&
                         selected_->ReferenceRuntimeID() == npc.ReferenceRuntimeID();
                     ImGuiMCP::TextUnformatted(npc.displayName.c_str());
+                    if (superCompact) {
+                        OverflowTooltip(npc.displayName, nameWidth);
+                        static_cast<void>(ImGuiMCP::TableSetColumnIndex(1));
+                        const auto formIdHit = BeginRowInteractionCell(
+                            "##trackedFormIdCell", rowHeight);
+                        interaction.Include(formIdHit.hovered, formIdHit.activated);
+                        ImGuiMCP::Text("%08X", npc.ReferenceRuntimeID());
+                        static_cast<void>(ImGuiMCP::TableSetColumnIndex(2));
+                        const auto actionHit = BeginRowInteractionCell(
+                            "##trackedBlankActionCell", rowHeight);
+                        interaction.Include(actionHit.hovered, actionHit.activated);
+                        ApplyUnifiedRowBackground(interaction, selected);
+                        if (interaction.activated) {
+                            SelectSnapshot(npc, TargetSource::Tracked);
+                        }
+                        ImGuiMCP::PopID();
+                        continue;
+                    }
                     const auto identity = std::format(
                         "{} / {:08X}",
                         npc.SourcePlugin().empty() ? std::string_view{"Dynamic"} : npc.SourcePlugin(),
@@ -159,7 +219,10 @@ namespace whereabouts::ui
                     ImGuiMCP::PopID();
                 }
 
-                for (const auto& entry : missingBodies) {
+                for (std::size_t filteredIndex = 0; filteredIndex < missingRows.size(); ++filteredIndex) {
+                    const auto combinedIndex = trackedRows.size() + filteredIndex;
+                    if (combinedIndex < page.first || combinedIndex >= pageEnd) continue;
+                    const auto& entry = missingBodies[missingRows[filteredIndex]];
                     const auto entryKey = entry.identity ?
                         std::format("{}:{:06X}", entry.identity->plugin, entry.identity->localID) :
                         std::format("{:08X}", entry.runtimeFormID);
@@ -170,6 +233,23 @@ namespace whereabouts::ui
                         std::string{"Unknown NPC"} : entry.lastKnownName;
                     const auto nameWidth = ImGuiMCP::GetContentRegionAvail().x;
                     ImGuiMCP::TextUnformatted(name.c_str());
+                    if (superCompact) {
+                        OverflowTooltip(name, nameWidth);
+                        static_cast<void>(ImGuiMCP::TableSetColumnIndex(1));
+                        ImGuiMCP::Text("%08X", entry.runtimeFormID);
+                        static_cast<void>(ImGuiMCP::TableSetColumnIndex(2));
+                        if (ImGuiMCP::Button(TranslateText("Remove Record"))) {
+                            static_cast<void>(savedNpcs_.RemoveTrackedDeath(entry));
+                            ImGuiMCP::PopID();
+                            ImGuiMCP::EndTable();
+                            if (pushedColors > 0) ImGuiMCP::PopStyleColor(pushedColors);
+                            return;
+                        }
+                        DelayedTooltip(TranslateText(
+                            "Removes this missing-body history entry."));
+                        ImGuiMCP::PopID();
+                        continue;
+                    }
                     const auto plugin = entry.identity && !entry.identity->plugin.empty() ?
                         entry.identity->plugin : std::string{"Dynamic"};
                     const auto identity = std::format("{} / {:08X}", plugin, entry.runtimeFormID);
@@ -209,6 +289,9 @@ namespace whereabouts::ui
                 ImGuiMCP::EndTable();
             }
             if (pushedColors > 0) ImGuiMCP::PopStyleColor(pushedColors);
+            RenderSavedListPagination(
+                "##TrackedPagination", filteredCount, pageCapacity, trackedListPagination_);
+            }
             if (!missingBodies.empty()) {
                 ImGuiMCP::TextWrapped("%s", TranslateText(
                     "M means the body is no longer available. Remove Record dismisses that history entry."));
@@ -218,8 +301,11 @@ namespace whereabouts::ui
             "Up to 100 active markers. Missing-body records use no marker slots."));
         if (selected_) {
             ImGuiMCP::Spacing();
-            RenderDetails();
+            RenderDetails(true);
         }
+        }();
+        }
+        ImGuiMCP::EndChild();
         RenderRootModals();
     }
 }

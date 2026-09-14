@@ -108,6 +108,20 @@ namespace whereabouts::ui
                 "%s", TranslateText("Restart Skyrim to apply this language."));
         }
 
+        if (ImGuiMCP::Checkbox(
+                TranslateText("Enable Advanced Filters"),
+                &settings_.enableAdvancedFilters)) {
+            if (!settings_.enableAdvancedFilters) ResetAdvancedFilters();
+            saveNow = true;
+        }
+        DelayedTooltip(TranslateText(
+            "Disabling this clears demographic, safety, spatial, worldspace, faction, and keyword filters."));
+        saveNow |= ImGuiMCP::Checkbox(
+            TranslateText("Show active filter names"),
+            &settings_.showActiveFilterNames);
+        DelayedTooltip(TranslateText(
+            "Shows active filter names in section headings; hover a heading for complete values."));
+
         const std::array keyboardLayouts{TranslateText("Alphabetical"), "QWERTY"};
         const auto keyboardIndex = settings_.controllerKeyboardLayout ==
             ControllerKeyboardLayout::Qwerty ? 1 : 0;
@@ -137,20 +151,26 @@ namespace whereabouts::ui
             }
             ImGuiMCP::EndCombo();
         }
-        const std::array resultDensities{TranslateText("Detailed"), TranslateText("Compact")};
-        const auto densityIndex = settings_.resultDensity == ResultDensity::Compact ? 1 : 0;
+        const std::array resultDensities{
+            TranslateText("Detailed"),
+            TranslateText("Compact"),
+            TranslateText("Super Compact")};
+        const auto densityIndex = settings_.resultDensity == ResultDensity::Compact ? 1 :
+            settings_.resultDensity == ResultDensity::SuperCompact ? 2 : 0;
         ImGuiMCP::SetNextItemWidth(180.0F);
         if (ImGuiMCP::BeginCombo(TranslateText("Result detail"), resultDensities[densityIndex])) {
             for (int index = 0; index < static_cast<int>(resultDensities.size()); ++index) {
                 if (ImGuiMCP::Selectable(resultDensities[index], densityIndex == index)) {
-                    settings_.resultDensity = index == 1 ?
-                        ResultDensity::Compact : ResultDensity::Detailed;
+                    settings_.resultDensity = index == 1 ? ResultDensity::Compact :
+                        index == 2 ? ResultDensity::SuperCompact : ResultDensity::Detailed;
                     saveNow = true;
                 }
             }
             ImGuiMCP::EndCombo();
         }
-        DelayedTooltip(TranslateText("Compact shows one line per NPC."));
+        DelayedTooltip(TranslateText(settings_.resultDensity == ResultDensity::SuperCompact ?
+            "Super Compact shows only NPC name and FormID." :
+            "Compact shows one line per NPC."));
         ImGuiMCP::BeginDisabled(settings_.showAllResults);
         int liveResultLimit = static_cast<int>(settings_.liveResultLimit);
         if (ImGuiMCP::SliderInt(

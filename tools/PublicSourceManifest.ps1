@@ -1,0 +1,58 @@
+function Get-WhereaboutsPublicSourceManifest {
+    [CmdletBinding()]
+    param()
+
+    [pscustomobject]@{
+        ExactFiles = @(
+            '.gitignore'
+            '.gitmodules'
+            'CHANGELOG.md'
+            'CMakeLists.txt'
+            'CMakePresets.json'
+            'README.md'
+            'VERSION.txt'
+            'global.json'
+            'vcpkg.json'
+            'version.json'
+            'cmake/Dependencies.cmake'
+            'cmake/OwnerValidation.cmake'
+            'cmake/Packaging.cmake'
+            'cmake/WhereaboutsVersion.h.in'
+            'cmake/WhereaboutsVersion.rc.in'
+            'cmake/triplets/x64-windows-static-md.cmake'
+            'config/Whereabouts.ini'
+            'docs/API.md'
+            'docs/COMPATIBILITY.md'
+            'docs/DEPENDENCIES.md'
+            'docs/RELEASE-CHECKLIST.md'
+            'docs/SPEC.md'
+            'docs/TESTING.md'
+            'docs/TRANSLATING.md'
+            'LICENSES/SKSE-Menu-Framework-API.txt'
+            'LICENSES/Third-Party-Notices.txt'
+            'LICENSES/Whereabouts-Permissions.txt'
+            'tools/compile-papyrus.ps1'
+            'tools/generate-translation-resources.ps1'
+            'tools/generate-translator-worksheet.ps1'
+            'tools/normalize-pex-metadata.ps1'
+            'tools/PublicSourceManifest.ps1'
+            'tools/stage-github-source.ps1'
+            'tools/stage-release.ps1'
+            'tools/validate-github-source.ps1'
+            'tools/validate-release.ps1'
+            'tools/validate-runtime-dependency.ps1'
+            'tools/validate-smf-binary.ps1'
+            'tools/VersionContract.ps1'
+            'tools/PluginBuilder/PluginCommands.cs'
+            'tools/PluginBuilder/Program.cs'
+            'tools/PluginBuilder/Whereabouts.PluginBuilder.csproj'
+            'translations/Whereabouts_1.1.0_Translator_Worksheet.tsv'
+        )
+        RecursiveDirectories = @(
+            'Interface/Translations'
+            'papyrus/Source'
+            'src'
+            'translations/machine'
+        )
+    }
+}

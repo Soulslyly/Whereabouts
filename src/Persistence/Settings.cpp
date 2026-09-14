@@ -101,6 +101,7 @@ namespace whereabouts
             const auto value = Lower(Trim(text));
             if (value == "detailed") return ResultDensity::Detailed;
             if (value == "compact") return ResultDensity::Compact;
+            if (value == "supercompact") return ResultDensity::SuperCompact;
             return std::nullopt;
         }
 
@@ -109,6 +110,7 @@ namespace whereabouts
             switch (value) {
             case ResultDensity::Detailed: return "Detailed";
             case ResultDensity::Compact: return "Compact";
+            case ResultDensity::SuperCompact: return "SuperCompact";
             }
             return "Detailed";
         }
@@ -191,6 +193,8 @@ namespace whereabouts
             WHEREABOUTS_UINT("interface.liveresultlimit", liveResultLimit)
             WHEREABOUTS_UINT("interface.fullresultlimit", fullResultLimit)
             WHEREABOUTS_BOOL("interface.showallresults", showAllResults)
+            WHEREABOUTS_BOOL("interface.enableadvancedfilters", enableAdvancedFilters)
+            WHEREABOUTS_BOOL("interface.showactivefilternames", showActiveFilterNames)
             if (path == "interface.copyidformat") return true;
 #undef WHEREABOUTS_UINT
 #undef WHEREABOUTS_BOOL
@@ -254,7 +258,8 @@ namespace whereabouts
             distanceUnit = DistanceUnit::Meters;
         }
         if (resultDensity != ResultDensity::Detailed &&
-            resultDensity != ResultDensity::Compact) {
+            resultDensity != ResultDensity::Compact &&
+            resultDensity != ResultDensity::SuperCompact) {
             resultDensity = ResultDensity::Detailed;
         }
         if (translationLanguage < TranslationLanguage::FollowSkyrim ||
@@ -347,7 +352,9 @@ namespace whereabouts
                << "Language=" << TranslationLanguageSettingText(settings.translationLanguage) << '\n'
                << "LiveResultLimit=" << settings.liveResultLimit << '\n'
                << "FullResultLimit=" << settings.fullResultLimit << '\n'
-               << "ShowAllResults=" << BoolText(settings.showAllResults) << '\n';
+               << "ShowAllResults=" << BoolText(settings.showAllResults) << '\n'
+               << "EnableAdvancedFilters=" << BoolText(settings.enableAdvancedFilters) << '\n'
+               << "ShowActiveFilterNames=" << BoolText(settings.showActiveFilterNames) << '\n';
         output.flush();
         if (!output) {
             output.close();
