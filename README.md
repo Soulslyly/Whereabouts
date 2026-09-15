@@ -2,6 +2,9 @@
 
 Whereabouts adds searchable NPC and location explorers to SKSE Menu Framework. It can locate named NPC references and cells, optionally include clearly labeled generic NPCs and location results in the main search, travel to selected cells, capture a console-selected or crosshair NPC, show useful details, run guarded NPC commands, save favorites and recent selections per save, and maintain up to 100 map-marker tracking aliases.
 
+> **EXPERIMENTAL SKYRIM VR BUILD — UNTESTED IN-GAME**
+> `1.1.0-vr.1` is a separate tool-validated candidate for Skyrim VR 1.4.15. It has not been launched or tested in Skyrim VR. Install it only if you are willing to test menu, search, command, tracking, and save/load behavior. VR is not yet an officially supported Whereabouts runtime.
+
 ## Requirements
 
 - Skyrim 1.5.97, 1.6.1170, or 1.7.104
@@ -12,6 +15,8 @@ Whereabouts adds searchable NPC and location explorers to SKSE Menu Framework. I
 - Backported Extended ESL Support (BEES), on Skyrim 1.5.97 only, for the unchanged modern light-plugin format
 
 UIExtensions, MCM Helper, SkyUI MCM, and PapyrusUtil are not required.
+
+The experimental VR Optional File instead requires Skyrim VR 1.4.15, SKSEVR 2.0.12, VR Address Library 0.109.0 or later, Skyrim VR ESL Support 1.3.2 or later, SKSE Menu Framework 3.14.x, and the VC++ runtime. Follow Skyrim VR ESL Support's Engine Fixes VR and `MaxStdio` instructions. Do not install the VR archive over the stable 1.1.0 Main file.
 
 The universal DLL and dependency contracts are tool-validated for all three listed runtimes. The final 1.1.0 archive still requires in-game confirmation; the user's pre-release testing covered the primary runtime, not every supported runtime.
 
@@ -79,7 +84,7 @@ Prepare for Uninstall does not undo intentional Travel, Bring, Enable, or Disabl
 
 ## Building
 
-The native plugin uses CMake, Visual Studio 2022, vcpkg, the .NET 9 SDK, CommonLibSSE-NG v7.2.0, and the SKSE Menu Framework API. Clone the GitHub repository with its pinned submodules, check out vcpkg commit `04a9d8e5212d01ee1dd9478eadd9caade4f8b0d4` at `.deps/vcpkg`, run its Windows bootstrap script, then configure and build with the supplied presets. `global.json` keeps PluginBuilder on .NET 9 with feature-band roll-forward. The release version is owned by `version.json`; required package versions and the vcpkg baseline are locked by `vcpkg.json`. GitHub is the source distribution; release downloads contain only the Main file and the optional machine-translation overwrite.
+The native plugin uses CMake, Visual Studio 2022, vcpkg, the .NET 9 SDK, CommonLibSSE-NG v7.2.0, and the SKSE Menu Framework API. Clone the GitHub repository recursively with its pinned submodules, check out vcpkg commit `04a9d8e5212d01ee1dd9478eadd9caade4f8b0d4` at `.deps/vcpkg`, run its Windows bootstrap script, then configure and build with the supplied presets. The experimental VR DLL uses `vs2022-vr-release`; it enables only CommonLib's VR target. `global.json` keeps PluginBuilder on .NET 9 with feature-band roll-forward. The release version is owned by `version.json`; required package versions and the vcpkg baseline are locked by `vcpkg.json`. GitHub is the source distribution; stable release downloads contain the Main file and optional machine-translation overwrite, while the experimental VR prerelease contains one VR archive.
 
 Compile the four scripts in `papyrus/Source` with the official Papyrus compiler and matching Skyrim/SKSE imports. Put the matching SKSE source directory before the vanilla source directory so its extended declarations are authoritative. The typed Mutagen generator creates `Whereabouts.esp` independently with `dotnet run --project tools/PluginBuilder/Whereabouts.PluginBuilder.csproj -- build plugin/Whereabouts.esp`; no original or template plugin is required.
 

@@ -26,10 +26,15 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 option(WHEREABOUTS_OWNER_VALIDATION "Require exact owner-only dependency evidence" OFF)
+option(WHEREABOUTS_EXPERIMENTAL_VR "Build the separate experimental Skyrim VR artifact" OFF)
 set(WHEREABOUTS_SMF_DLL "" CACHE FILEPATH "Exact installed SKSE Menu Framework DLL for owner validation")
 set(WHEREABOUTS_LEGACY_ADDRESS_LIBRARY "" CACHE FILEPATH "Exact installed Skyrim 1.5.97 Address Library database for owner validation")
 set(WHEREABOUTS_SKYRIM_1170_EXECUTABLE "" CACHE FILEPATH "Exact installed Skyrim 1.6.1170 executable for owner validation")
 set(WHEREABOUTS_SKSE_226_DLL "" CACHE FILEPATH "Exact installed SKSE 2.2.6 runtime DLL for owner validation")
+set(WHEREABOUTS_SKYRIM_VR_EXECUTABLE "" CACHE FILEPATH "Exact Skyrim VR 1.4.15 executable for owner validation")
+set(WHEREABOUTS_SKSEVR_DLL "" CACHE FILEPATH "Exact SKSEVR 2.0.12 runtime DLL for owner validation")
+set(WHEREABOUTS_VR_ADDRESS_LIBRARY "" CACHE FILEPATH "Exact Skyrim VR Address Library CSV for owner validation")
+set(WHEREABOUTS_VR_ESL_SUPPORT_DLL "" CACHE FILEPATH "Exact Skyrim VR ESL Support DLL for owner validation")
 include(cmake/OwnerValidation.cmake)
 
 if(MSVC)
@@ -42,9 +47,15 @@ endif()
 include(cmake/Dependencies.cmake)
 
 set(BUILD_TESTS OFF CACHE BOOL "Do not add CommonLib's test suite to the consumer build" FORCE)
-set(ENABLE_SKYRIM_SE ON CACHE BOOL "Build CommonLib with Skyrim SE support" FORCE)
-set(ENABLE_SKYRIM_AE ON CACHE BOOL "Build CommonLib with Skyrim AE support" FORCE)
-set(ENABLE_SKYRIM_VR OFF CACHE BOOL "Whereabouts does not target Skyrim VR" FORCE)
+if(WHEREABOUTS_EXPERIMENTAL_VR)
+    set(ENABLE_SKYRIM_SE OFF CACHE BOOL "Disable Skyrim SE for the VR-only artifact" FORCE)
+    set(ENABLE_SKYRIM_AE OFF CACHE BOOL "Disable Skyrim AE for the VR-only artifact" FORCE)
+    set(ENABLE_SKYRIM_VR ON CACHE BOOL "Enable Skyrim VR for the experimental artifact" FORCE)
+else()
+    set(ENABLE_SKYRIM_SE ON CACHE BOOL "Build CommonLib with Skyrim SE support" FORCE)
+    set(ENABLE_SKYRIM_AE ON CACHE BOOL "Build CommonLib with Skyrim AE support" FORCE)
+    set(ENABLE_SKYRIM_VR OFF CACHE BOOL "The stable artifact does not target Skyrim VR" FORCE)
+endif()
 set(SKSE_SUPPORT_PATCH_SAFETY OFF CACHE BOOL "Whereabouts does not install native patches" FORCE)
 add_subdirectory(external/CommonLibSSE-NG)
 
@@ -84,6 +95,7 @@ add_library(
         src/API/PapyrusApi.cpp
         src/AppContext.cpp
         src/Compatibility/MenuFrameworkRuntime.cpp
+        src/Compatibility/VrEnvironmentCompatibility.cpp
         src/Lifecycle/OperationQueueSkyrim.cpp
         src/Commands/CommandService.cpp
         src/Core/FormIdentityAdapter.cpp

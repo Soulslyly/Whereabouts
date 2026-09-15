@@ -1,5 +1,8 @@
 # Whereabouts Testing
 
+> **EXPERIMENTAL SKYRIM VR BUILD — UNTESTED IN-GAME**
+> `1.1.0-vr.1` has compile/static evidence only. The VR test target is Skyrim VR 1.4.15 with SKSEVR 2.0.12, VR Address Library 0.109.0+, Skyrim VR ESL Support 1.3.2+, SKSE Menu Framework 3.14.x, and VRESL's required Engine Fixes VR/`MaxStdio` setup. Use a disposable profile and save; do not report this candidate as runtime-supported until the checklist in `VR-FEEDBACK.md` is completed.
+
 ## Candidate under test
 
 Use the final-hash 1.1.0 Main candidate for every runtime pass and compare its SHA-256 with the release validator. The published 1.0.3 runtime payload remains the rollback authority. Install 1.1.0 as a separate test mod in a disposable profile and save. Test the same archive on Skyrim 1.5.97/SKSE 2.0.20 with BEES, Skyrim 1.6.1170/SKSE 2.2.6, and Skyrim 1.7.104/SKSE 2.3.1. Every profile needs the matching Address Library, an enabled `Whereabouts.esp`, and a supported SMF 3.14.x DLL. Dependency boot evidence is not Whereabouts runtime acceptance.
@@ -15,6 +18,8 @@ Before runtime installation, validate all four Main-archive PEX files with `tool
 ## Automated checks
 
 Configure and build the Debug or Release preset, then run its matching CTest preset. Pure tests cover canonical identity, name/FormID/stable-ID/EditorID search, conservative typo suggestions, spatial presentation, settings, serialization codecs, command policy, tracking lifecycle, row interaction, and UI models. `IndexRuntimeTests.cpp` additionally compiles and executes the same `RuntimeIndex.cpp` and `IndexCoordinator.cpp` used by the DLL, with only SKSE scheduling, tracked-alias capture, marker repair, and game-form capture supplied at their external boundaries. It deterministically covers request coalescing, session/readiness publication, first-open state decisions, scheduler and capture failures, stale build/failure rejection, in-flight invalidation, immutable old views, marker-repair intent, targeted publication, and EditorID retention. Structural tests separately cover Address Library formats 2 and 5, the exported SKSE compatibility declaration, plugin records, UI source contracts, and archive policy. None of these tests proves SMF/SKSE callback timing or player-visible behavior inside Skyrim.
+
+For the experimental VR source, configure and build `vs2022-vr-release`. The VR contracts cover minimum SKSEVR metadata, exact runtime admission, VRESL-aware light-plugin lookup, VR crosshair member layout, dependency rejection, one-archive naming, and unchanged portable behavior. These checks remain tool validation only.
 
 ## Runtime target capture
 

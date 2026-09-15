@@ -2,18 +2,23 @@
 param(
     [string]$Version,
     [switch]$CreateArchives,
-    [string]$RuntimeDllPath
+    [string]$RuntimeDllPath,
+    [switch]$ExperimentalVr
 )
 
 $ErrorActionPreference = 'Stop'
 $snapshotRoot = [System.IO.Path]::GetFullPath((Split-Path -Parent $PSScriptRoot)).TrimEnd('\')
 . (Join-Path $PSScriptRoot 'VersionContract.ps1')
-$canonicalVersion = (Get-WhereaboutsVersionContract -ProjectRoot $snapshotRoot).display
+$versionContract = Get-WhereaboutsVersionContract -ProjectRoot $snapshotRoot
+$canonicalVersion = $versionContract.display
 if ([string]::IsNullOrWhiteSpace($Version)) {
     $Version = $canonicalVersion
 }
 elseif ($Version -ne $canonicalVersion) {
     throw "Requested version '$Version' does not match canonical version '$canonicalVersion'."
+}
+if ($ExperimentalVr -and $versionContract.artifact -eq $versionContract.display) {
+    throw 'ExperimentalVr requires a distinct canonical VR artifact label.'
 }
 
 $stagingRoot = Join-Path $snapshotRoot 'staging'
@@ -85,7 +90,11 @@ function New-DeterministicZip([string]$SourceRoot, [string]$ArchivePath) {
 }
 
 $runtimeDllSource = if ([string]::IsNullOrWhiteSpace($RuntimeDllPath)) {
-    'build/vs2022-release/Release/Whereabouts.dll'
+    if ($ExperimentalVr) {
+        'build/vs2022-vr-release/Release/Whereabouts.dll'
+    } else {
+        'build/vs2022-release/Release/Whereabouts.dll'
+    }
 }
 else {
     [System.IO.Path]::GetFullPath($RuntimeDllPath)
@@ -115,19 +124,27 @@ foreach ($entry in $runtimeFiles.GetEnumerator()) {
     Copy-ReleaseFile $entry.Key $runtimeStage $entry.Value
 }
 
-Reset-SafeStage $translationStage
-foreach ($language in $languages | Where-Object { $_ -ne 'ENGLISH' }) {
-    Copy-ReleaseFile `
-        "translations/machine/Whereabouts_$language.txt" `
-        $translationStage `
-        "Interface/Translations/Whereabouts_$language.txt"
+if (-not $ExperimentalVr) {
+    Reset-SafeStage $translationStage
+    foreach ($language in $languages | Where-Object { $_ -ne 'ENGLISH' }) {
+        Copy-ReleaseFile `
+            "translations/machine/Whereabouts_$language.txt" `
+            $translationStage `
+            "Interface/Translations/Whereabouts_$language.txt"
+    }
 }
 
 if ($CreateArchives) {
     New-Item -ItemType Directory -Path $releaseRoot -Force | Out-Null
-    New-DeterministicZip $runtimeStage (Join-Path $releaseRoot "Whereabouts-$Version-Main.zip")
-    New-DeterministicZip $translationStage (Join-Path $releaseRoot "Whereabouts-$Version-Translations.zip")
+    if ($ExperimentalVr) {
+        Get-ChildItem -LiteralPath $releaseRoot -File -Filter "Whereabouts-$($versionContract.artifact)-*.zip" |
+            Remove-Item -Force
+        New-DeterministicZip $runtimeStage (Join-Path $releaseRoot "Whereabouts-$($versionContract.artifact)-Experimental-VR.zip")
+    } else {
+        New-DeterministicZip $runtimeStage (Join-Path $releaseRoot "Whereabouts-$Version-Main.zip")
+        New-DeterministicZip $translationStage (Join-Path $releaseRoot "Whereabouts-$Version-Translations.zip")
+    }
 }
 
 Write-Output "RUNTIME_STAGE=$runtimeStage"
-Write-Output "TRANSLATION_STAGE=$translationStage"
+if (-not $ExperimentalVr) { Write-Output "TRANSLATION_STAGE=$translationStage" }

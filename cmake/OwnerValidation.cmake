@@ -9,7 +9,18 @@ if(WHEREABOUTS_OWNER_VALIDATION)
     if(NOT EXISTS "${WHEREABOUTS_SMF_DLL}" OR IS_DIRECTORY "${WHEREABOUTS_SMF_DLL}")
         message(FATAL_ERROR "WHEREABOUTS_SMF_DLL must name the exact installed SKSEMenuFramework.dll")
     endif()
-    foreach(required_path WHEREABOUTS_SKYRIM_1170_EXECUTABLE WHEREABOUTS_SKSE_226_DLL)
+    if(WHEREABOUTS_EXPERIMENTAL_VR)
+        set(WHEREABOUTS_REQUIRED_RUNTIME_PATHS
+            WHEREABOUTS_SKYRIM_VR_EXECUTABLE
+            WHEREABOUTS_SKSEVR_DLL
+            WHEREABOUTS_VR_ADDRESS_LIBRARY
+            WHEREABOUTS_VR_ESL_SUPPORT_DLL)
+    else()
+        set(WHEREABOUTS_REQUIRED_RUNTIME_PATHS
+            WHEREABOUTS_SKYRIM_1170_EXECUTABLE
+            WHEREABOUTS_SKSE_226_DLL)
+    endif()
+    foreach(required_path ${WHEREABOUTS_REQUIRED_RUNTIME_PATHS})
         if(NOT DEFINED ${required_path} OR "${${required_path}}" STREQUAL "")
             message(FATAL_ERROR "${required_path} is required when WHEREABOUTS_OWNER_VALIDATION is ON")
         endif()
@@ -19,31 +30,47 @@ if(WHEREABOUTS_OWNER_VALIDATION)
     endforeach()
 
     get_filename_component(WHEREABOUTS_PROJECT_ROOT "${CMAKE_CURRENT_LIST_DIR}/.." ABSOLUTE)
-    execute_process(
-        COMMAND powershell -NoProfile -ExecutionPolicy Bypass
-            -File "${WHEREABOUTS_PROJECT_ROOT}/tools/validate-smf-binary.ps1"
-            -MenuFrameworkDll "${WHEREABOUTS_SMF_DLL}"
-            -ProjectRoot "${WHEREABOUTS_PROJECT_ROOT}"
-        RESULT_VARIABLE WHEREABOUTS_SMF_VALIDATION_RESULT
-        OUTPUT_VARIABLE WHEREABOUTS_SMF_VALIDATION_OUTPUT
-        ERROR_VARIABLE WHEREABOUTS_SMF_VALIDATION_ERROR
-    )
-    if(NOT WHEREABOUTS_SMF_VALIDATION_RESULT EQUAL 0)
-        message(FATAL_ERROR "Exact SMF binary validation failed:\n${WHEREABOUTS_SMF_VALIDATION_OUTPUT}${WHEREABOUTS_SMF_VALIDATION_ERROR}")
-    endif()
+    if(WHEREABOUTS_EXPERIMENTAL_VR)
+        execute_process(
+            COMMAND powershell -NoProfile -ExecutionPolicy Bypass
+                -File "${WHEREABOUTS_PROJECT_ROOT}/tools/validate-vr-dependencies.ps1"
+                -ProjectRoot "${WHEREABOUTS_PROJECT_ROOT}"
+                -SkyrimVrExecutable "${WHEREABOUTS_SKYRIM_VR_EXECUTABLE}"
+                -SkseVrDll "${WHEREABOUTS_SKSEVR_DLL}"
+                -VrAddressLibrary "${WHEREABOUTS_VR_ADDRESS_LIBRARY}"
+                -VrEslSupportDll "${WHEREABOUTS_VR_ESL_SUPPORT_DLL}"
+                -SmfDll "${WHEREABOUTS_SMF_DLL}"
+            RESULT_VARIABLE WHEREABOUTS_RUNTIME_VALIDATION_RESULT
+            OUTPUT_VARIABLE WHEREABOUTS_RUNTIME_VALIDATION_OUTPUT
+            ERROR_VARIABLE WHEREABOUTS_RUNTIME_VALIDATION_ERROR
+        )
+    else()
+        execute_process(
+            COMMAND powershell -NoProfile -ExecutionPolicy Bypass
+                -File "${WHEREABOUTS_PROJECT_ROOT}/tools/validate-smf-binary.ps1"
+                -MenuFrameworkDll "${WHEREABOUTS_SMF_DLL}"
+                -ProjectRoot "${WHEREABOUTS_PROJECT_ROOT}"
+            RESULT_VARIABLE WHEREABOUTS_SMF_VALIDATION_RESULT
+            OUTPUT_VARIABLE WHEREABOUTS_SMF_VALIDATION_OUTPUT
+            ERROR_VARIABLE WHEREABOUTS_SMF_VALIDATION_ERROR
+        )
+        if(NOT WHEREABOUTS_SMF_VALIDATION_RESULT EQUAL 0)
+            message(FATAL_ERROR "Exact SMF binary validation failed:\n${WHEREABOUTS_SMF_VALIDATION_OUTPUT}${WHEREABOUTS_SMF_VALIDATION_ERROR}")
+        endif()
 
-    execute_process(
-        COMMAND powershell -NoProfile -ExecutionPolicy Bypass
-            -File "${WHEREABOUTS_PROJECT_ROOT}/tools/validate-runtime-dependency.ps1"
-            -SkyrimExecutable "${WHEREABOUTS_SKYRIM_1170_EXECUTABLE}"
-            -SkseDll "${WHEREABOUTS_SKSE_226_DLL}"
-            -ExpectedSkyrimFileVersion "1.6.1170.0"
-            -ExpectedSkseFileVersion "0.2.2.6"
-        RESULT_VARIABLE WHEREABOUTS_RUNTIME_VALIDATION_RESULT
-        OUTPUT_VARIABLE WHEREABOUTS_RUNTIME_VALIDATION_OUTPUT
-        ERROR_VARIABLE WHEREABOUTS_RUNTIME_VALIDATION_ERROR
-    )
+        execute_process(
+            COMMAND powershell -NoProfile -ExecutionPolicy Bypass
+                -File "${WHEREABOUTS_PROJECT_ROOT}/tools/validate-runtime-dependency.ps1"
+                -SkyrimExecutable "${WHEREABOUTS_SKYRIM_1170_EXECUTABLE}"
+                -SkseDll "${WHEREABOUTS_SKSE_226_DLL}"
+                -ExpectedSkyrimFileVersion "1.6.1170.0"
+                -ExpectedSkseFileVersion "0.2.2.6"
+            RESULT_VARIABLE WHEREABOUTS_RUNTIME_VALIDATION_RESULT
+            OUTPUT_VARIABLE WHEREABOUTS_RUNTIME_VALIDATION_OUTPUT
+            ERROR_VARIABLE WHEREABOUTS_RUNTIME_VALIDATION_ERROR
+        )
+    endif()
     if(NOT WHEREABOUTS_RUNTIME_VALIDATION_RESULT EQUAL 0)
-        message(FATAL_ERROR "Exact Skyrim/SKSE dependency validation failed:\n${WHEREABOUTS_RUNTIME_VALIDATION_OUTPUT}${WHEREABOUTS_RUNTIME_VALIDATION_ERROR}")
+        message(FATAL_ERROR "Exact runtime dependency validation failed:\n${WHEREABOUTS_RUNTIME_VALIDATION_OUTPUT}${WHEREABOUTS_RUNTIME_VALIDATION_ERROR}")
     endif()
 endif()

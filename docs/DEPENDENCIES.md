@@ -1,5 +1,19 @@
 # Whereabouts 1.1.0 Dependency Lock
 
+> **EXPERIMENTAL SKYRIM VR BUILD — UNTESTED IN-GAME**
+> The `1.1.0-vr.1` file is a separate tool-validated Skyrim VR candidate, not a replacement for stable 1.1.0.
+
+## Experimental VR dependency set
+
+- Skyrim VR 1.4.15
+- SKSEVR 2.0.12
+- VR Address Library 0.109.0 or later (`version-1-4-15-0.csv`)
+- Skyrim VR ESL Support 1.3.2 or later, including its documented Engine Fixes VR and `MaxStdio` setup
+- SKSE Menu Framework 3.14.x with the complete API export surface used by Whereabouts
+- Microsoft Visual C++ 2015-2022 x64 Redistributable
+
+The candidate is distributed under Nexus Optional Files and as a GitHub prerelease. Missing VRESL-aware light-plugin resolution or an unsupported SMF DLL makes Whereabouts fail closed before registering its menu. Exact installed Skyrim VR/SKSEVR/VRESL evidence is not present in the current development environment and remains an explicit publication gate.
+
 ## Local build environment
 
 - Operating system: Windows x64
@@ -41,6 +55,7 @@ Installed game and mod-manager paths are read-only evidence and are intentionall
   - Commit: `7a60f4de794095d7b0f8928d1b930a52e9a7da83`
   - License: GPL-3.0-or-later with the Modding Exception in `EXCEPTIONS.md`
   - GitHub records this exact revision through the `external/CommonLibSSE-NG` submodule.
+  - Its nested OpenVR authority is commit `60eb187801956ad277f1cae6680e3a410ee0873b`.
 - Microsoft vcpkg baseline: `04a9d8e5212d01ee1dd9478eadd9caade4f8b0d4`
 
 ## Runtime targets

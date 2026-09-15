@@ -1,5 +1,8 @@
 # Whereabouts 1.1.0 Compatibility Matrix
 
+> **EXPERIMENTAL SKYRIM VR BUILD — UNTESTED IN-GAME**
+> The separate `1.1.0-vr.1` artifact is tool-validated only and is not part of the stable universal DLL. It targets Skyrim VR 1.4.15 with SKSEVR 2.0.12, VR Address Library 0.109.0+, Skyrim VR ESL Support 1.3.2+, and SKSE Menu Framework 3.14.x. It belongs under Nexus Optional Files until user testing establishes runtime support.
+
 Whereabouts uses one Address Library/CommonLibSSE-NG DLL for the supported Skyrim runtime lines. A row marked **runtime pending** is structurally supported but must not be advertised as verified until the final candidate passes the full in-game matrix in `TESTING.md`.
 
 | Skyrim | SKSE | Address Library | SKSE Menu Framework | Evidence | Status |
@@ -9,6 +12,7 @@ Whereabouts uses one Address Library/CommonLibSSE-NG DLL for the supported Skyri
 | 1.7.104 | 2.3.1 | v13 / format 5 | 3.14.1 package, DLL fixed version 3.14.0.0 | Universal DLL build path, format-5 support, installed 81-export surface, and dependency boot evidence pass; final Whereabouts runtime test still required | Runtime pending |
 | Any | Matching | Matching | Package 3.8.0, installed DLL fixed version 3.0.0.0 | Exact installed legacy DLL is below the supported fixed-version floor | Rejected at startup |
 | Any | Matching | Matching | Unreadable version, unknown major, or missing required exports | Startup probe fails closed before Whereabouts registers menu callbacks | Unsupported |
+| Skyrim VR 1.4.15 | SKSEVR 2.0.12 | VR Address Library 0.109.0+ plus Skyrim VR ESL Support 1.3.2+ | 3.14.x VR-capable DLL | VR-only Release compile and static API checks; no headset or in-game evidence | Experimental / runtime untested |
 
 ## Runtime dependency policy
 
@@ -17,6 +21,7 @@ Whereabouts uses one Address Library/CommonLibSSE-NG DLL for the supported Skyri
 - All 81 framework/ImGui functions used by the current build must be exported before the framework wrapper is used. This includes the four registration/command bootstrap functions and the UI surface derived from the shipped source.
 - The legacy floating-point version export is neither resolved nor called; it does not participate in compatibility decisions or logging.
 - The exact installed 3.14.0.0 DLL currently exposes the complete framework/ImGui export surface used by the 1.1.0 development build. The validator derives that list from the shipped source and consumer header.
+- Skyrim VR ESL Support's documented Engine Fixes VR and `MaxStdio` setup remains a user-side requirement. Whereabouts does not install or modify either dependency.
 
 ## Read-only API compatibility
 

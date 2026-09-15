@@ -1,5 +1,21 @@
 # 1.1.0 Release Checklist
 
+> **EXPERIMENTAL SKYRIM VR BUILD — UNTESTED IN-GAME**
+> The VR candidate is tool-validated only. It must remain a GitHub prerelease and Nexus Optional File named `Whereabouts VR Build`.
+
+## Experimental VR 1.1.0-vr.1 checklist
+
+1. Confirm exact Skyrim VR 1.4.15, SKSEVR 2.0.12, VR Address Library 0.109.0+, Skyrim VR ESL Support 1.3.2+, SKSE Menu Framework 3.14.x, Engine Fixes VR/`MaxStdio`, and VC++ runtime evidence without modifying installations.
+2. Build only `vs2022-vr-release`; confirm CommonLib reports SE OFF, AE OFF, and VR ON.
+3. Run VR-focused and portable cumulative tests. Record compile/static results as tool-validated, never as in-game confirmation.
+4. Prove the ESP, Papyrus, translations, INI/save schema, commands, and tracking structures remain the stable 1.1.0 payload.
+5. Run `tools/stage-release.ps1 -Version 1.1.0-vr.1 -CreateArchives -ExperimentalVr` and the matching validator exactly once for the final candidate.
+6. Require exactly `Whereabouts-1.1.0.vr.1-Experimental-VR.zip`; do not create VR Main, Translation, or source ZIP files.
+7. Publish tag `v1.1.0-vr.1` only on branch `vr/1.1.0-vr.1`, as a GitHub prerelease. Do not modify `main`, tag `v1.1.0`, or the stable release.
+8. Place the same file under Nexus Optional Files with the warning and `VR-FEEDBACK.md` checklist.
+
+## Stable 1.1.0 checklist
+
 1. Confirm the target Skyrim runtime, matching SKSE, Address Library, and loaded SKSE Menu Framework DLL fixed version.
 2. Perform a clean Release configure and build with the locked vcpkg dependencies.
 3. Compile all four current Papyrus sources with the official compiler and exact import order for the 1.5.97, 1.6.1170, and 1.7.104 setups. Ship only fresh PEX files proven to match the current PSC inputs. Require canonical zero timestamp and `Whereabouts` user/computer metadata with `tools/normalize-pex-metadata.ps1 -ValidateOnly`; do not require byte-identical payloads across independent compiler runs because Bethesda's compiler renumbers internal temporary symbols.

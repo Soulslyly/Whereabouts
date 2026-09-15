@@ -11,7 +11,7 @@ function Get-WhereaboutsVersionContract {
         throw "Canonical version contract is missing: $contractPath"
     }
     $contract = Get-Content -LiteralPath $contractPath -Raw | ConvertFrom-Json
-    foreach ($property in @('numeric', 'display', 'parent')) {
+    foreach ($property in @('numeric', 'display', 'artifact', 'parent')) {
         if ($contract.PSObject.Properties.Name -notcontains $property -or
             [string]::IsNullOrWhiteSpace([string]$contract.$property)) {
             throw "Canonical version contract is missing $property."
@@ -25,6 +25,7 @@ function Get-WhereaboutsVersionContract {
 
     $numeric = [string]$contract.numeric
     $display = [string]$contract.display
+    $artifact = [string]$contract.artifact
     $parent = [string]$contract.parent
     if ($numeric -notmatch "^$core$") {
         throw "Canonical numeric version is malformed: $numeric"
@@ -37,11 +38,19 @@ function Get-WhereaboutsVersionContract {
     if ($parent -notmatch "^$semanticVersion$" -or $parent -eq $display) {
         throw "Canonical parent version is malformed or not distinct: $parent"
     }
+    $expectedArtifact = if ($display -match ('^' + [regex]::Escape($numeric) + '-vr\.(.+)$')) {
+        "$numeric.vr.$($Matches[1])"
+    } else {
+        $display
+    }
+    if ($artifact -ne $expectedArtifact) {
+        throw "Canonical artifact version '$artifact' does not match '$expectedArtifact'."
+    }
 
     [pscustomobject]@{
         numeric = $numeric
         display = $display
+        artifact = $artifact
         parent = $parent
     }
 }
-

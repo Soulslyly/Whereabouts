@@ -1,5 +1,6 @@
 {
   "numeric": "1.1.0",
-  "display": "1.1.0",
-  "parent": "1.1.0-rc.10"
+  "display": "1.1.0-vr.1",
+  "artifact": "1.1.0.vr.1",
+  "parent": "1.1.0"
 }

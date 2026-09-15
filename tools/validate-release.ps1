@@ -2,18 +2,23 @@
 param(
     [string]$Version,
     [switch]$RequireArchives,
-    [string]$MenuFrameworkDll
+    [string]$MenuFrameworkDll,
+    [switch]$ExperimentalVr
 )
 
 $ErrorActionPreference = 'Stop'
 $snapshotRoot = [System.IO.Path]::GetFullPath((Split-Path -Parent $PSScriptRoot)).TrimEnd('\')
 . (Join-Path $PSScriptRoot 'VersionContract.ps1')
-$canonicalVersion = (Get-WhereaboutsVersionContract -ProjectRoot $snapshotRoot).display
+$versionContract = Get-WhereaboutsVersionContract -ProjectRoot $snapshotRoot
+$canonicalVersion = $versionContract.display
 if ([string]::IsNullOrWhiteSpace($Version)) {
     $Version = $canonicalVersion
 }
 elseif ($Version -ne $canonicalVersion) {
     throw "Requested version '$Version' does not match canonical version '$canonicalVersion'."
+}
+if ($ExperimentalVr -and $versionContract.artifact -eq $versionContract.display) {
+    throw 'ExperimentalVr requires a distinct canonical VR artifact label.'
 }
 
 if ($RequireArchives) {
@@ -126,26 +131,41 @@ function Assert-PexMetadata([string]$Root) {
 }
 
 if (-not (Test-Path -LiteralPath $runtimeStage -PathType Container)) { throw 'Runtime stage is missing.' }
-if (-not (Test-Path -LiteralPath $translationStage -PathType Container)) { throw 'Translation stage is missing.' }
+if (-not $ExperimentalVr -and -not (Test-Path -LiteralPath $translationStage -PathType Container)) { throw 'Translation stage is missing.' }
 $actualRuntime = Get-RelativeFiles $runtimeStage
 if ([string]::Join("`n", $actualRuntime) -ne [string]::Join("`n", $requiredRuntime)) {
     throw 'Runtime stage does not match the explicit deployable allowlist.'
 }
-$actualTranslations = Get-RelativeFiles $translationStage
-if ([string]::Join("`n", $actualTranslations) -ne [string]::Join("`n", $requiredTranslations)) {
-    throw 'Translation stage does not match the eight-file overwrite allowlist.'
+if (-not $ExperimentalVr) {
+    $actualTranslations = Get-RelativeFiles $translationStage
+    if ([string]::Join("`n", $actualTranslations) -ne [string]::Join("`n", $requiredTranslations)) {
+        throw 'Translation stage does not match the eight-file overwrite allowlist.'
+    }
 }
 Assert-RuntimeBinaryHygiene (Join-Path $runtimeStage 'SKSE/Plugins/Whereabouts.dll')
 Assert-PexMetadata $runtimeStage
 
 if ($RequireArchives) {
-    $archives = [ordered]@{
-        "Whereabouts-$Version-Main.zip" = $runtimeStage
-        "Whereabouts-$Version-Translations.zip" = $translationStage
+    $archives = if ($ExperimentalVr) {
+        [ordered]@{
+            "Whereabouts-$($versionContract.artifact)-Experimental-VR.zip" = $runtimeStage
+        }
+    } else {
+        [ordered]@{
+            "Whereabouts-$Version-Main.zip" = $runtimeStage
+            "Whereabouts-$Version-Translations.zip" = $translationStage
+        }
     }
     $sourceArchive = Join-Path $releaseRoot "Whereabouts-$Version-Source.zip"
     if (Test-Path -LiteralPath $sourceArchive -PathType Leaf) {
         throw 'Release directory contains a forbidden Source ZIP.'
+    }
+    if ($ExperimentalVr) {
+        $unexpected = @(Get-ChildItem -LiteralPath $releaseRoot -File |
+            Where-Object Name -match ('^Whereabouts-' + [regex]::Escape($versionContract.artifact) + '-(?:Main|Translations)\.zip$'))
+        if ($unexpected.Count -ne 0) {
+            throw 'Release directory contains a forbidden VR Main/Translations ZIP.'
+        }
     }
     foreach ($item in $archives.GetEnumerator()) {
         $archivePath = Join-Path $releaseRoot $item.Key

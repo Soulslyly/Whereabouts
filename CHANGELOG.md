@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.1.0-vr.1 - Experimental Skyrim VR build
+
+- Preserve the released 1.1.0 SE/AE source and binaries unchanged.
+- Add a separate Skyrim VR 1.4.15 / SKSEVR 2.0.12 DLL using CommonLibSSE-NG's VR target and the existing plugin identity, save schema, Papyrus scripts, translations, and UI behavior.
+- Fail closed when Skyrim VR ESL Support cannot expose the light plugin, reject unsupported VR runtimes, and retain the installed SKSE Menu Framework export gate.
+- Handle CommonLib's VR crosshair target arrays without changing the flat-runtime path.
+- Add exact VR dependency contracts, VR-only build/test presets, and one experimental archive named `Whereabouts-1.1.0.vr.1-Experimental-VR.zip`.
+- Keep the build explicitly untested in-game. The clean cumulative 365-test VR Release suite passes; exact installed Skyrim VR/SKSEVR/VRESL evidence is unavailable on the development machine, and the user explicitly waived that owner gate for this experimental package only.
+- Promote VR into a future main build only after at least three independent users report successful menu, search, command, tracking, and save/load operation without a reproducible critical defect.
+
 ## 1.1.0 - Saved-list page scrolling and final release
 
 - Add independent whole-page vertical scrolling to Recent, Favorites, and Tracked so full lists cannot push Selected NPC content beyond reach.

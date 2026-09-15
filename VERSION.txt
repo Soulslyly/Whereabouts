@@ -1,9 +1,10 @@
-Whereabouts 1.1.0
-Parent: Whereabouts 1.1.0-rc.10
-Status: Final release candidate with scrollable saved-list pages; Skyrim acceptance pending
+Whereabouts 1.1.0-vr.1
+Parent: Whereabouts 1.1.0
+Public file label: 1.1.0.vr.1
+Status: Experimental VR package tool-validated; installed VR dependency gate explicitly waived; Skyrim VR testing pending
 Source baseline: Whereabouts 1.0.2+layout.5
 Public release predecessor: Nexus 1.0.3 (packaging-only reupload of 1.0.2)
-Created: 2026-09-13
-Runtime development target: Skyrim 1.6.1170
-Runtime targets: Skyrim 1.5.97, 1.6.1170, and 1.7.104
+Created: 2026-09-14
+Runtime development target: Skyrim VR 1.4.15 / SKSEVR 2.0.12
+Runtime targets: Skyrim VR 1.4.15 only; released SE/AE 1.1.0 remains unchanged
 CommonLibSSE-NG: v7.2.0 (7a60f4de794095d7b0f8928d1b930a52e9a7da83)
