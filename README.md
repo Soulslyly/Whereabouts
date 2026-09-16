@@ -8,12 +8,12 @@ Whereabouts adds searchable NPC and location explorers to SKSE Menu Framework. I
 - Microsoft Visual C++ 2015-2022 x64 Redistributable
 - SKSE matching that runtime
 - Address Library for SKSE Plugins matching that runtime
-- SKSE Menu Framework 3.14.1 or a later compatible major-3 release whose DLL fixed version is at least 3.14.x
+- One menu framework: SKSE Menu Framework 3.14.1 (DLL fixed version 3.14.x+) or ApocryphaRealm Menu Framework 1.8.4+; do not enable both together
 - Backported Extended ESL Support (BEES), on Skyrim 1.5.97 only, for the unchanged modern light-plugin format
 
 UIExtensions, MCM Helper, SkyUI MCM, and PapyrusUtil are not required.
 
-The universal DLL and dependency contracts are tool-validated for all three listed runtimes. The final 1.1.0 archive still requires in-game confirmation; the user's pre-release testing covered the primary runtime, not every supported runtime.
+The universal DLL and dependency contracts are tool-validated for all three listed runtimes. SMF 3.14.0.0 and AMF 1.8.4.0 pass the exact required-export check. The 1.1.1 AMF correction still requires in-game confirmation after release.
 
 Standard SKSE translation files are included for all nine Skyrim Special Edition languages. The Main archive ships clean English fallback text in every language file so translators can replace one file directly; optional machine translations are packaged separately. Whereabouts Settings can override its language without changing Skyrim's language, with a full restart required so the whole menu remains consistent.
 
@@ -79,7 +79,7 @@ Prepare for Uninstall does not undo intentional Travel, Bring, Enable, or Disabl
 
 ## Building
 
-The native plugin uses CMake, Visual Studio 2022, vcpkg, the .NET 9 SDK, CommonLibSSE-NG v7.2.0, and the SKSE Menu Framework API. Clone the GitHub repository with its pinned submodules, check out vcpkg commit `04a9d8e5212d01ee1dd9478eadd9caade4f8b0d4` at `.deps/vcpkg`, run its Windows bootstrap script, then configure and build with the supplied presets. `global.json` keeps PluginBuilder on .NET 9 with feature-band roll-forward. The release version is owned by `version.json`; required package versions and the vcpkg baseline are locked by `vcpkg.json`. GitHub is the source distribution; release downloads contain only the Main file and the optional machine-translation overwrite.
+The native plugin uses CMake, Visual Studio 2022, vcpkg, the .NET 9 SDK, CommonLibSSE-NG v7.2.0, and the public SKSE Menu Framework consumer API implemented by either supported menu framework. Clone the GitHub repository with its pinned submodules, check out vcpkg commit `04a9d8e5212d01ee1dd9478eadd9caade4f8b0d4` at `.deps/vcpkg`, run its Windows bootstrap script, then configure and build with the supplied presets. `global.json` keeps PluginBuilder on .NET 9 with feature-band roll-forward. The release version is owned by `version.json`; required package versions and the vcpkg baseline are locked by `vcpkg.json`. GitHub is the source distribution; release downloads contain only the Main file and the optional machine-translation overwrite.
 
 Compile the four scripts in `papyrus/Source` with the official Papyrus compiler and matching Skyrim/SKSE imports. Put the matching SKSE source directory before the vanilla source directory so its extended declarations are authoritative. The typed Mutagen generator creates `Whereabouts.esp` independently with `dotnet run --project tools/PluginBuilder/Whereabouts.PluginBuilder.csproj -- build plugin/Whereabouts.esp`; no original or template plugin is required.
 
@@ -89,11 +89,11 @@ Compile the four scripts in `papyrus/Source` with the official Papyrus compiler 
 
 `WhereaboutsAPI` version 2 preserves every version 1 entry point and adds copied demographic, actor-flag, area/worldspace, faction, and base-keyword observations. Call `IsReady()` first, negotiate with `GetVersion()` or `SupportsVersion()`, and cache related values instead of polling every scalar getter each frame. Missing, stale, unknown, or not-ready data fails closed. The API intentionally provides no mutation, event, subscription, tasklet access, engine pointer, or native C++ ABI. See `docs/API.md` for the complete contract.
 
-See `docs/COMPATIBILITY.md` for the evidence-qualified runtime matrix. Whereabouts validates the already-loaded SMF DLL's fixed version and required exports before registering any menu callbacks. It does not resolve or call the framework's obsolete floating-point version export.
+See `docs/COMPATIBILITY.md` for the evidence-qualified runtime matrix. Whereabouts identifies the already-loaded SMF or AMF provider, validates that provider's fixed-version line and every required export before registering any menu callbacks, and fails closed for unknown providers. It does not resolve or call the obsolete floating-point version export.
 
 ## Credits and permissions
 
-Whereabouts is a new implementation. Thanks to k0mp1ex for Where Are You, an awesome mod and the inspiration for Whereabouts. No Where Are You or NPC Lookup assets or code are shipped as Whereabouts code. SKSE Menu Framework belongs to its respective author and is used through its public API under the included license notice.
+Whereabouts is a new implementation. Thanks to k0mp1ex for Where Are You, an awesome mod and the inspiration for Whereabouts. No Where Are You or NPC Lookup assets or code are shipped as Whereabouts code. SKSE Menu Framework and ApocryphaRealm Menu Framework belong to their respective authors; Whereabouts consumes the public SMF-compatible API and bundles neither framework.
 
 The native plugin is built with CommonLibSSE-NG and depends at runtime on SKSE and Address Library for SKSE Plugins. The CommonLibSSE-NG license and Modding Exception are included in the Main file; exact upstream source revisions are recorded in the GitHub repository and dependency documentation. Credit belongs to their respective authors and maintainers.
 

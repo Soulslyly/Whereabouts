@@ -1,4 +1,4 @@
-# Whereabouts 1.1.0 Dependency Lock
+# Whereabouts 1.1.1 Dependency Lock
 
 ## Local build environment
 
@@ -22,6 +22,7 @@ The packaged DLL uses the dynamic Microsoft C/C++ runtime. Players therefore nee
 - Current Skyrim target: `1.7.104.0` / SKSE `2.3.1` / exact `versionlib-1-7-104-0.bin`
 - The current SKSE 2.3.1 loader log identifies runtime `01070680` and records a complete boot into the test profile.
 - SKSE Menu Framework package metadata reports `3.14.1.0`; its DLL metadata and runtime log self-report `3.14.0.0`. The installed binary loaded correctly under SKSE 2.3.1.
+- ApocryphaRealm Menu Framework's exact installed DLL reports fixed version `1.8.4.0` and SHA-256 `2BB69DF05DD9C3E56C27642F45511C754F754772B63B2AAAB16A99B2FCFF7A2B`.
 
 Installed game and mod-manager paths are read-only evidence and are intentionally omitted from public release archives.
 
@@ -48,7 +49,7 @@ Installed game and mod-manager paths are read-only evidence and are intentionall
 - Legacy release test: Skyrim `1.5.97` / SKSE `2.0.20` / Address Library all-in-one legacy database / BEES
 - Development and first semantic test: Skyrim `1.6.1170` / SKSE `2.2.6` / Address Library all-in-one v12
 - Current-runtime release test: Skyrim `1.7.104` / SKSE `2.3.1` / Address Library all-in-one v13
-- Required menu framework for all targets: SKSE Menu Framework `3.14.1` or a later compatible major-3 release. Whereabouts checks the loaded DLL fixed version and complete required-export surface and does not register below fixed version `3.14.x`; it does not resolve or call the obsolete float-version export.
+- Required menu framework for all targets: exactly one of SKSE Menu Framework `3.14.1` (DLL fixed version `3.14.x+` within major 3) or ApocryphaRealm Menu Framework `1.8.4+` within major 1. Whereabouts identifies the loaded provider and checks its complete required-export surface; it does not resolve or call the obsolete float-version export.
 - The official SKSE site was rechecked on 2026-09-04 and identifies Steam runtime `1.7.104` with SKSE `2.3.1` as the current Anniversary Edition pair.
 - One DLL declares both ordinary Address Library and Address Library v5 support. Runtime support is advertised only after in-game testing on each target.
 
@@ -66,6 +67,7 @@ Installed game and mod-manager paths are read-only evidence and are intentionall
 
 - The pinned SMF header declares `SetSection`, `AddSectionItem`, `AddEvent`, `AddInputEvent`, `GetMainWindow`, and a legacy float-version function. Whereabouts neither resolves nor calls that legacy function; compatibility uses the DLL fixed version and the complete required-export probe.
 - The installed SMF 3.14.0.0 DLL passes the current derived 82-export contract covering every ImGui wrapper currently called by Whereabouts plus its critical framework exports. Its SHA-256 is `FE7F398B62DDF23D2EA4C163A0EBFA2BFF80D19B7462224F037F79FA057EA67A`.
+- The installed AMF 1.8.4.0 DLL passes the same derived 82-export contract. Its SHA-256 is `2BB69DF05DD9C3E56C27642F45511C754F754772B63B2AAAB16A99B2FCFF7A2B`.
 - The owner-only exact-binary path is supplied through the disposable `WHEREABOUTS_SMF_DLL` CMake cache value. It is never written into source or release archives.
 - SMF render and event callbacks use `__stdcall`; drawing calls are under `ImGuiMCP`.
 - The pinned header is byte-for-byte identical to the current official API repository copy.
@@ -87,4 +89,4 @@ The generator fixes the plugin name, HEDR 1.71 light allocation, Skyrim.esm mast
 
 ## Release verification
 
-Use the supplied Release checklist and production validators for the Main and optional Translation files, plus the separate GitHub source-manifest validator. Fresh Papyrus outputs are normalized only in their compiler-owned PEX header metadata and then validated before staging. Independent compiler runs can still renumber internal temporary symbols, so PEX payload byte identity is not a valid semantic gate; the PSC inputs, exact compiler/import set, successful compile, and canonical privacy metadata are the reproducibility evidence. Compiler success and structural plugin validation do not prove game behavior. The 1.1.0 candidate requires final-hash in-game acceptance on all three runtime targets. No runtime claim follows from the dependency matrix alone.
+Use the supplied Release checklist and production validators for the Main and optional Translation files, plus the separate GitHub source-manifest validator. Fresh Papyrus outputs are normalized only in their compiler-owned PEX header metadata and then validated before staging. Independent compiler runs can still renumber internal temporary symbols, so PEX payload byte identity is not a valid semantic gate; the PSC inputs, exact compiler/import set, successful compile, and canonical privacy metadata are the reproducibility evidence. Compiler success and structural plugin validation do not prove game behavior. The 1.1.1 candidate requires final-hash in-game acceptance for AMF and retains the existing runtime qualification limits. No runtime claim follows from the dependency matrix alone.

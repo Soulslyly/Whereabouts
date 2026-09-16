@@ -9,7 +9,7 @@ namespace whereabouts
 {
     namespace
     {
-        std::optional<MenuFrameworkVersion> ReadFixedVersion(HMODULE module) noexcept
+        std::optional<std::wstring> ReadModulePath(HMODULE module) noexcept
         {
             try {
                 std::wstring path(32768, L'\0');
@@ -19,7 +19,16 @@ namespace whereabouts
                     static_cast<DWORD>(path.size()));
                 if (length == 0 || length >= path.size()) return std::nullopt;
                 path.resize(length);
+                return path;
+            } catch (...) {
+                return std::nullopt;
+            }
+        }
 
+        std::optional<MenuFrameworkVersion> ReadFixedVersion(
+            const std::wstring& path) noexcept
+        {
+            try {
                 DWORD unused = 0;
                 const auto byteCount = GetFileVersionInfoSizeW(path.c_str(), &unused);
                 if (byteCount == 0) return std::nullopt;
@@ -58,7 +67,10 @@ namespace whereabouts
         if (!module) return result;
 
         result.moduleLoaded = true;
-        result.fixedVersion = ReadFixedVersion(module);
+        if (const auto modulePath = ReadModulePath(module)) {
+            result.provider = IdentifyMenuFrameworkProvider(*modulePath);
+            result.fixedVersion = ReadFixedVersion(*modulePath);
+        }
 
         constexpr std::array requiredExports{
             "RegisterEventPriority",

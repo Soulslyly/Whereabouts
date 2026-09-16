@@ -21,8 +21,8 @@ Create a clean Nexus-ready successor to Where Are You that searches, locates, in
 
 - Validate the universal build on Skyrim 1.5.97, 1.6.1170, and 1.7.104 before advertising each runtime; Skyrim 1.5.97 additionally requires BEES for the preserved HEDR 1.71 ESPFE.
 - Prefer one CommonLibSSE-NG/Address Library DLL, but publish separate binaries if runtime testing proves that necessary.
-- Direct requirements: matching SKSE, Address Library, and SKSE Menu Framework 3.14.1 or a verified compatible successor.
-- Validate the loaded SMF DLL by fixed file version and the complete source-derived framework/ImGui export surface before constructing its event wrapper or registering pages. Accept only major version 3 with minor version 14 or later; fail closed on unreadable versions, unknown majors, or missing exports. Do not resolve or call the obsolete legacy float-version export.
+- Direct requirements: matching SKSE and Address Library, plus exactly one supported menu framework: SKSE Menu Framework 3.14.1 or ApocryphaRealm Menu Framework 1.8.4 or a verified compatible successor within the accepted provider major line.
+- Identify the loaded provider and validate its fixed file version plus the complete source-derived framework/ImGui export surface before constructing its event wrapper or registering pages. Accept stock SMF major 3 with minor 14 or later, or AMF major 1 at version 1.8.4 or later; fail closed on unknown providers, unreadable versions, unsupported major lines, or missing exports. Do not resolve or call the obsolete legacy float-version export.
 - UIExtensions, MCM Helper, SkyUI MCM, and PapyrusUtil are not direct requirements.
 
 ## Architecture

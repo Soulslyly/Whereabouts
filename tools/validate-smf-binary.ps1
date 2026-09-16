@@ -27,14 +27,14 @@ function Read-AsciiZ([byte[]]$Bytes, [int]$Offset) {
 function Get-PeExports([string]$Path) {
     $bytes = [IO.File]::ReadAllBytes((Resolve-Path -LiteralPath $Path).Path)
     if ($bytes.Length -lt 0x100 -or $bytes[0] -ne 0x4D -or $bytes[1] -ne 0x5A) {
-        throw 'SMF DLL is not a valid PE image.'
+        throw 'Menu framework DLL is not a valid PE image.'
     }
     $peOffset = [int](Read-UInt32 $bytes 0x3C)
-    if ((Read-UInt32 $bytes $peOffset) -ne 0x00004550) { throw 'SMF PE signature is missing.' }
+    if ((Read-UInt32 $bytes $peOffset) -ne 0x00004550) { throw 'Menu framework PE signature is missing.' }
     $sectionCount = [int](Read-UInt16 $bytes ($peOffset + 6))
     $optionalSize = [int](Read-UInt16 $bytes ($peOffset + 20))
     $optionalOffset = $peOffset + 24
-    if ((Read-UInt16 $bytes $optionalOffset) -ne 0x20B) { throw 'Expected an x64 SMF DLL.' }
+    if ((Read-UInt16 $bytes $optionalOffset) -ne 0x20B) { throw 'Expected an x64 menu framework DLL.' }
 
     $sections = @()
     $sectionOffset = $optionalOffset + $optionalSize
@@ -56,11 +56,11 @@ function Get-PeExports([string]$Path) {
                 return [int]([uint64]$section.RawOffset + ([uint64]$Rva - $section.VirtualAddress))
             }
         }
-        throw ('SMF export RVA 0x{0:X8} is outside the PE sections.' -f $Rva)
+        throw ('Menu framework export RVA 0x{0:X8} is outside the PE sections.' -f $Rva)
     }
 
     $exportRva = [uint32](Read-UInt32 $bytes ($optionalOffset + 112))
-    if ($exportRva -eq 0) { throw 'SMF DLL has no export directory.' }
+    if ($exportRva -eq 0) { throw 'Menu framework DLL has no export directory.' }
     $exportOffset = Convert-Rva $exportRva
     $nameCount = [int](Read-UInt32 $bytes ($exportOffset + 24))
     $namesOffset = Convert-Rva ([uint32](Read-UInt32 $bytes ($exportOffset + 32)))
@@ -74,8 +74,23 @@ function Get-PeExports([string]$Path) {
 
 $dllPath = (Resolve-Path -LiteralPath $MenuFrameworkDll).Path
 $version = (Get-Item -LiteralPath $dllPath).VersionInfo
-if ($version.FileMajorPart -ne 3 -or $version.FileMinorPart -lt 14) {
-    throw "Unsupported installed SMF fixed version: $($version.FileVersion)"
+$dllName = [IO.Path]::GetFileName($dllPath)
+if ($dllName.Equals('SKSEMenuFramework.dll', [StringComparison]::OrdinalIgnoreCase)) {
+    $provider = 'SKSE Menu Framework'
+    $supportedVersion = $version.FileMajorPart -eq 3 -and $version.FileMinorPart -ge 14
+}
+elseif ($dllName.Equals('!ApocryphaMenuFramework.dll', [StringComparison]::OrdinalIgnoreCase) -or
+        $dllName.Equals('ApocryphaMenuFramework.dll', [StringComparison]::OrdinalIgnoreCase)) {
+    $provider = 'ApocryphaRealm Menu Framework'
+    $supportedVersion = $version.FileMajorPart -eq 1 -and
+        ($version.FileMinorPart -gt 8 -or
+         ($version.FileMinorPart -eq 8 -and $version.FileBuildPart -ge 4))
+}
+else {
+    throw "Unknown menu framework provider: $dllName"
+}
+if (-not $supportedVersion) {
+    throw "Unsupported $provider fixed version: $($version.FileVersion)"
 }
 
 $exports = Get-PeExports $dllPath
@@ -98,7 +113,7 @@ foreach ($wrapper in $usedWrappers) {
     $pattern = '(?s)inline\s+[^\{;]*?\b' + [regex]::Escape($wrapper) +
         '\s*\([^;\{]*\)\s*\{(?<body>.*?)(?=\r?\n\s*inline\s)'
     $definitions = [regex]::Matches($header, $pattern)
-    if ($definitions.Count -eq 0) { throw "Used SMF wrapper has no inline definition: $wrapper" }
+    if ($definitions.Count -eq 0) { throw "Used menu framework wrapper has no inline definition: $wrapper" }
     $foundExport = $false
     foreach ($definition in $definitions) {
         foreach ($match in [regex]::Matches(
@@ -108,12 +123,12 @@ foreach ($wrapper in $usedWrappers) {
             $foundExport = $true
         }
     }
-    if (-not $foundExport) { throw "Used SMF wrapper exposes no imported function: $wrapper" }
+    if (-not $foundExport) { throw "Used menu framework wrapper exposes no imported function: $wrapper" }
 }
 
 $missing = @($required | Where-Object { -not $exports.Contains($_) } | Sort-Object)
 if ($missing.Count -ne 0) {
-    throw "Installed SMF DLL is missing required exports: $($missing -join ', ')"
+    throw "Installed menu framework DLL is missing required exports: $($missing -join ', ')"
 }
 
 $runtimeProbe = Get-Content -LiteralPath (
@@ -122,7 +137,7 @@ $runtimeMissing = @($required | Where-Object {
     $runtimeProbe.IndexOf(('"{0}"' -f $_), [StringComparison]::Ordinal) -lt 0
 } | Sort-Object)
 if ($runtimeMissing.Count -ne 0) {
-    throw "Runtime SMF preflight is missing used exports: $($runtimeMissing -join ', ')"
+    throw "Runtime menu framework preflight is missing used exports: $($runtimeMissing -join ', ')"
 }
 
 $stream = [IO.File]::OpenRead($dllPath)
@@ -133,7 +148,8 @@ try {
 }
 finally { $stream.Dispose() }
 Write-Output (
-    'PASS: installed SMF fixed version {0}; {1} required exports; SHA-256 {2}' -f
+    'PASS: installed {0} fixed version {1}; {2} required exports; SHA-256 {3}' -f
+    $provider,
     $version.FileVersion,
     $required.Count,
     $hash)

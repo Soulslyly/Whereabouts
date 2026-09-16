@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.1 - Menu framework provider compatibility
+
+- Accept either SKSE Menu Framework 3.14.x or newer within major version 3, or ApocryphaRealm Menu Framework 1.8.4 or newer within major version 1.
+- Keep the complete required-export preflight for both providers and reject unknown providers or unsupported fixed versions.
+- Preserve gameplay behavior, UI, ESP, Papyrus, translations, settings, and save schemas from 1.1.0.
+
 ## 1.1.0 - Saved-list page scrolling and final release
 
 - Add independent whole-page vertical scrolling to Recent, Favorites, and Tracked so full lists cannot push Selected NPC content beyond reach.

@@ -117,12 +117,14 @@ namespace
         const auto frameworkProbe = whereabouts::ProbeLoadedMenuFramework();
         const auto frameworkCompatibility = whereabouts::DecideMenuFrameworkCompatibility(
             frameworkProbe.moduleLoaded,
+            frameworkProbe.provider,
             frameworkProbe.fixedVersion,
             frameworkProbe.requiredExportsAvailable);
         if (frameworkProbe.fixedVersion) {
             const auto version = *frameworkProbe.fixedVersion;
             logger::info(
-                "SKSE Menu Framework DLL fixed version {}.{}.{}.{}",
+                "{} DLL fixed version {}.{}.{}.{}",
+                whereabouts::MenuFrameworkProviderLabel(frameworkProbe.provider),
                 version.major,
                 version.minor,
                 version.patch,
@@ -130,8 +132,8 @@ namespace
         }
         if (frameworkCompatibility != whereabouts::MenuFrameworkCompatibility::Compatible) {
             logger::error(
-                "SKSE Menu Framework compatibility rejected: {}{}; "
-                "Whereabouts requires DLL fixed version 3.14.x or newer within major version 3",
+                "Menu framework compatibility rejected: {}{}; "
+                "Whereabouts requires SMF 3.14.x+ within major 3 or AMF 1.8.4+ within major 1",
                 whereabouts::MenuFrameworkCompatibilityLabel(frameworkCompatibility),
                 frameworkProbe.missingRequiredExport.empty() ?
                     std::string{} :
@@ -139,7 +141,9 @@ namespace
             return;
         }
 
-        logger::info("SKSE Menu Framework compatibility accepted");
+        logger::info(
+            "{} compatibility accepted",
+            whereabouts::MenuFrameworkProviderLabel(frameworkProbe.provider));
         static_cast<void>(whereabouts::ui::InitializeLocalization(
             context->settings.translationLanguage));
         if (!context->serializationReady.load(std::memory_order_acquire) ||
