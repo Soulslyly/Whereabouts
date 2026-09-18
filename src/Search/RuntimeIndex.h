@@ -20,6 +20,11 @@
 
 namespace whereabouts
 {
+    [[nodiscard]] std::vector<std::uint32_t> MergeActorDiscoveryCandidateIds(
+        std::span<const std::uint32_t> actorArrayIds,
+        std::span<const std::uint32_t> globalRegistryIds,
+        std::span<const std::uint32_t> cellPersistentIds);
+
     struct RuntimeIndexDiagnostics
     {
         std::uint64_t lastFullBuildMicroseconds{0};
@@ -34,12 +39,18 @@ namespace whereabouts
             std::expected<std::vector<NpcSnapshot>, IndexFailure>()>;
         using LocationCatalogCapture = std::function<
             std::expected<std::vector<LocationSnapshot>, IndexFailure>()>;
+        using RuntimeRowCapture = std::function<
+            std::optional<NpcSnapshot>(std::uint32_t)>;
 
         RuntimeIndex();
         explicit RuntimeIndex(CatalogCapture catalogCapture);
         RuntimeIndex(
             CatalogCapture catalogCapture,
             LocationCatalogCapture locationCatalogCapture);
+        RuntimeIndex(
+            CatalogCapture catalogCapture,
+            LocationCatalogCapture locationCatalogCapture,
+            RuntimeRowCapture runtimeRowCapture);
 
         [[nodiscard]] IndexFailure Rebuild(
             std::uint64_t expectedSession,
@@ -88,6 +99,8 @@ namespace whereabouts
         std::atomic_uint64_t noOpSuppressionCount_{0};
         CatalogCapture catalogCapture_;
         LocationCatalogCapture locationCatalogCapture_;
+        RuntimeRowCapture runtimeRowCapture_;
+        std::vector<std::uint32_t> trackedRuntimeFormIDs_;
         mutable std::mutex writerMutex_;
     };
 }

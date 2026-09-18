@@ -23,6 +23,26 @@
 
 namespace whereabouts
 {
+    std::vector<std::uint32_t> MergeActorDiscoveryCandidateIds(
+        std::span<const std::uint32_t> actorArrayIds,
+        std::span<const std::uint32_t> globalRegistryIds,
+        std::span<const std::uint32_t> cellPersistentIds)
+    {
+        std::vector<std::uint32_t> merged;
+        std::unordered_set<std::uint32_t> seen;
+        merged.reserve(
+            actorArrayIds.size() + globalRegistryIds.size() + cellPersistentIds.size());
+        const auto append = [&](std::span<const std::uint32_t> source) {
+            for (const auto formID : source) {
+                if (formID != 0 && seen.insert(formID).second) merged.push_back(formID);
+            }
+        };
+        append(actorArrayIds);
+        append(globalRegistryIds);
+        append(cellPersistentIds);
+        return merged;
+    }
+
     namespace
     {
         bool IsSearchableActor(const RE::Actor* actor)
@@ -411,60 +431,137 @@ namespace whereabouts
             return projection;
         }
 
+        using RecordProjectionCache = std::unordered_map<
+            std::uint32_t,
+            std::shared_ptr<const NpcRecordProjection>>;
+
+        [[nodiscard]] std::optional<NpcSnapshot> CaptureActorSnapshot(
+            RuntimeIndex& index,
+            RE::Actor* actor,
+            const EditorIdLookup& editorIds,
+            RecordProjectionCache& recordProjectionCache)
+        {
+            if (!IsSearchableActor(actor)) return std::nullopt;
+
+            const auto* base = actor->GetActorBase();
+            const auto* referenceName = actor->GetDisplayFullName();
+            const auto displayName = PreferredNpcDisplayName(
+                referenceName ? std::string_view(referenceName) : std::string_view{},
+                CopyDisplayName(base));
+            if (displayName.empty()) return std::nullopt;
+
+            NpcSnapshot snapshot;
+            snapshot.identity.reference.runtimeFormID = actor->GetFormID();
+            snapshot.identity.base.runtimeFormID = base->GetFormID();
+            snapshot.identity.uniqueBase = base->IsUnique();
+            snapshot.displayName = displayName;
+            if (const auto identity = TryGetFormIdentity(actor)) {
+                snapshot.identity.reference.stable = *identity;
+            }
+            if (!snapshot.identity.IsPersistable()) return std::nullopt;
+            if (const auto identity = TryGetFormIdentity(base)) {
+                snapshot.identity.base.stable = *identity;
+            }
+            snapshot.referenceEditorID = editorIds.Find(snapshot.identity.reference.runtimeFormID);
+            snapshot.baseEditorID = editorIds.Find(snapshot.identity.base.runtimeFormID);
+            snapshot.recordProjection = GetOrCreateRecordProjection(
+                recordProjectionCache,
+                base->GetFormID(),
+                [&] { return CaptureRecordProjection(base, editorIds); });
+            index.RefreshDynamic(snapshot);
+            return snapshot;
+        }
+
+        [[nodiscard]] std::optional<NpcSnapshot> CaptureRuntimeSnapshot(
+            RuntimeIndex& index,
+            std::uint32_t runtimeFormID)
+        {
+            auto* actor = RE::TESForm::LookupByID<RE::Actor>(runtimeFormID);
+            const auto editorIds = CaptureEditorIds();
+            RecordProjectionCache recordProjectionCache;
+            return CaptureActorSnapshot(index, actor, editorIds, recordProjectionCache);
+        }
+
         std::expected<std::vector<NpcSnapshot>, IndexFailure> CaptureGameCatalog(
             RuntimeIndex& index)
         {
+            auto* dataHandler = RE::TESDataHandler::GetSingleton();
+            if (!dataHandler) return std::unexpected(IndexFailure::FormsUnavailable);
+
             const auto editorIds = CaptureEditorIds();
-            std::vector<RE::FormID> candidateIDs;
+            std::unordered_map<std::uint32_t, RE::NiPointer<RE::Actor>> actorPointers;
+
+            std::vector<std::uint32_t> actorArrayIds;
+            const auto& actors = dataHandler->GetFormArray<RE::Actor>();
+            actorArrayIds.reserve(actors.size());
+            for (auto* actor : actors) {
+                if (!actor) continue;
+                const auto formID = actor->GetFormID();
+                actorArrayIds.push_back(formID);
+                actorPointers.try_emplace(formID, RE::NiPointer<RE::Actor>{actor});
+            }
+
+            std::vector<std::uint32_t> globalRegistryIds;
             {
                 const auto& [forms, lock] = RE::TESForm::GetAllForms();
                 const RE::BSReadLockGuard guard{lock};
-                if (!forms) return std::unexpected(IndexFailure::FormsUnavailable);
-                candidateIDs.reserve(forms->size());
-                for (const auto& [formID, form] : *forms) {
-                    if (form && form->GetFormType() == RE::FormType::ActorCharacter) {
-                        candidateIDs.push_back(formID);
+                if (forms) {
+                    globalRegistryIds.reserve(forms->size());
+                    for (const auto& [formID, form] : *forms) {
+                        if (form && form->GetFormType() == RE::FormType::ActorCharacter) {
+                            globalRegistryIds.push_back(formID);
+                            if (auto* actor = form->As<RE::Actor>()) {
+                                actorPointers.try_emplace(
+                                    formID, RE::NiPointer<RE::Actor>{actor});
+                            }
+                        }
                     }
                 }
             }
 
+            std::vector<std::uint32_t> cellPersistentIds;
+            const auto& cells = dataHandler->GetFormArray<RE::TESObjectCELL>();
+            for (auto* cell : cells) {
+                if (!cell) continue;
+                auto& runtimeData = cell->GetRuntimeData();
+                const RE::BSSpinLockGuard guard{runtimeData.spinLock};
+                for (auto* reference : runtimeData.objectList) {
+                    if (reference &&
+                        reference->GetFormType() == RE::FormType::ActorCharacter) {
+                        const auto formID = reference->GetFormID();
+                        cellPersistentIds.push_back(formID);
+                        if (auto* actor = reference->As<RE::Actor>()) {
+                            actorPointers.try_emplace(
+                                formID, RE::NiPointer<RE::Actor>{actor});
+                        }
+                    }
+                }
+            }
+
+            const auto candidateIDs = MergeActorDiscoveryCandidateIds(
+                actorArrayIds,
+                globalRegistryIds,
+                cellPersistentIds);
+
             std::vector<NpcSnapshot> rebuilt;
             rebuilt.reserve(candidateIDs.size());
-            std::unordered_map<
-                std::uint32_t,
-                std::shared_ptr<const NpcRecordProjection>> recordProjectionCache;
+            RecordProjectionCache recordProjectionCache;
             for (const auto formID : candidateIDs) {
-                auto* actor = RE::TESForm::LookupByID<RE::Actor>(formID);
-                if (!IsSearchableActor(actor)) continue;
-
-                const auto* displayName = actor->GetDisplayFullName();
-                if (!displayName || std::string_view(displayName).empty()) continue;
-
-                NpcSnapshot snapshot;
-                snapshot.identity.reference.runtimeFormID = actor->GetFormID();
-                if (const auto* base = actor->GetActorBase()) {
-                    snapshot.identity.base.runtimeFormID = base->GetFormID();
-                    snapshot.identity.uniqueBase = base->IsUnique();
+                const auto found = actorPointers.find(formID);
+                auto* actor = found != actorPointers.end() ?
+                    found->second.get() : RE::TESForm::LookupByID<RE::Actor>(formID);
+                if (auto snapshot = CaptureActorSnapshot(
+                        index, actor, editorIds, recordProjectionCache)) {
+                    rebuilt.push_back(std::move(*snapshot));
                 }
-                snapshot.displayName = displayName;
-                if (const auto identity = TryGetFormIdentity(actor)) {
-                    snapshot.identity.reference.stable = *identity;
-                }
-                if (!snapshot.identity.IsPersistable()) continue;
-                if (const auto identity = TryGetFormIdentity(actor->GetActorBase())) {
-                    snapshot.identity.base.stable = *identity;
-                }
-                snapshot.referenceEditorID = editorIds.Find(snapshot.identity.reference.runtimeFormID);
-                snapshot.baseEditorID = editorIds.Find(snapshot.identity.base.runtimeFormID);
-                if (const auto* base = actor->GetActorBase()) {
-                    snapshot.recordProjection = GetOrCreateRecordProjection(
-                        recordProjectionCache,
-                        base->GetFormID(),
-                        [&] { return CaptureRecordProjection(base, editorIds); });
-                }
-                index.RefreshDynamic(snapshot);
-                rebuilt.push_back(std::move(snapshot));
             }
+            logger::info(
+                "Actor discovery: actor array {}, global registry {}, cell-persistent {}, unique {}, indexed {}",
+                actorArrayIds.size(),
+                globalRegistryIds.size(),
+                cellPersistentIds.size(),
+                candidateIDs.size(),
+                rebuilt.size());
             return rebuilt;
         }
 
@@ -557,14 +654,24 @@ namespace whereabouts
 
     RuntimeIndex::RuntimeIndex(
         CatalogCapture catalogCapture,
-        LocationCatalogCapture locationCatalogCapture) :
+        LocationCatalogCapture locationCatalogCapture) : RuntimeIndex(
+            std::move(catalogCapture),
+            std::move(locationCatalogCapture),
+            RuntimeRowCapture{})
+    {}
+
+    RuntimeIndex::RuntimeIndex(
+        CatalogCapture catalogCapture,
+        LocationCatalogCapture locationCatalogCapture,
+        RuntimeRowCapture runtimeRowCapture) :
         emptyCatalog_(std::make_shared<const std::vector<NpcSnapshot>>()),
         emptyLocationCatalog_(std::make_shared<const std::vector<LocationSnapshot>>()),
         published_(std::make_shared<const RuntimeIndexSnapshot>(RuntimeIndexSnapshot{
             1, 1, IndexReadiness::Empty, IndexFailure::None,
             emptyCatalog_, emptyLocationCatalog_})),
         catalogCapture_(std::move(catalogCapture)),
-        locationCatalogCapture_(std::move(locationCatalogCapture))
+        locationCatalogCapture_(std::move(locationCatalogCapture)),
+        runtimeRowCapture_(std::move(runtimeRowCapture))
     {}
 
     std::uint64_t RuntimeIndex::NextRevision() noexcept
@@ -601,6 +708,7 @@ namespace whereabouts
         try {
             std::scoped_lock lock(writerMutex_);
             if (expectedSession != CurrentSession()) return false;
+            trackedRuntimeFormIDs_.clear();
             published_.store(
                 std::make_shared<const RuntimeIndexSnapshot>(RuntimeIndexSnapshot{
                     expectedSession,
@@ -687,7 +795,9 @@ namespace whereabouts
         }
         auto rebuiltLocations = std::move(*capturedLocations);
 
-        ApplyTrackedState(rebuilt, trackedRuntimeFormIDs);
+        trackedRuntimeFormIDs_.assign(
+            trackedRuntimeFormIDs.begin(), trackedRuntimeFormIDs.end());
+        ApplyTrackedState(rebuilt, trackedRuntimeFormIDs_);
         if (expectedSession != CurrentSession()) return IndexFailure::BuildFailed;
         published_.store(
             MakeIndexCatalogView(
@@ -732,7 +842,21 @@ namespace whereabouts
         const auto found = std::ranges::find_if(*view->catalog, [&](const auto& snapshot) {
             return snapshot.ReferenceRuntimeID() == runtimeFormID;
         });
-        if (found == view->catalog->end()) return false;
+        if (found == view->catalog->end()) {
+            auto captured = runtimeRowCapture_ ?
+                runtimeRowCapture_(runtimeFormID) : CaptureRuntimeSnapshot(*this, runtimeFormID);
+            if (!captured || captured->ReferenceRuntimeID() != runtimeFormID) return false;
+            captured->tracked = std::ranges::find(
+                trackedRuntimeFormIDs_, runtimeFormID) != trackedRuntimeFormIDs_.end();
+            auto catalog = *view->catalog;
+            catalog.push_back(std::move(*captured));
+            ApplyIndexedReferenceCounts(catalog);
+            published_.store(
+                MakeIndexContentView(view, NextRevision(), std::move(catalog)),
+                std::memory_order_release);
+            targetedCloneCount_.fetch_add(1, std::memory_order_relaxed);
+            return true;
+        }
         auto refreshed = *found;
         RefreshDynamic(refreshed);
         if (refreshed == *found) {
@@ -818,10 +942,11 @@ namespace whereabouts
     void RuntimeIndex::SetTrackedRuntimeIds(std::span<const std::uint32_t> runtimeFormIDs)
     {
         std::scoped_lock lock(writerMutex_);
+        trackedRuntimeFormIDs_.assign(runtimeFormIDs.begin(), runtimeFormIDs.end());
         const auto view = Snapshot();
         if (!view) return;
         auto catalog = *view->catalog;
-        ApplyTrackedState(catalog, runtimeFormIDs);
+        ApplyTrackedState(catalog, trackedRuntimeFormIDs_);
         if (catalog == *view->catalog) {
             noOpSuppressionCount_.fetch_add(1, std::memory_order_relaxed);
             return;
@@ -837,10 +962,12 @@ namespace whereabouts
         std::span<const std::uint32_t> trackedRuntimeFormIDs)
     {
         std::scoped_lock lock(writerMutex_);
+        trackedRuntimeFormIDs_.assign(
+            trackedRuntimeFormIDs.begin(), trackedRuntimeFormIDs.end());
         const auto view = Snapshot();
         if (!view) return false;
         auto catalog = *view->catalog;
-        ApplyTrackedState(catalog, trackedRuntimeFormIDs);
+        ApplyTrackedState(catalog, trackedRuntimeFormIDs_);
         bool targetFound = runtimeFormID == 0;
         if (runtimeFormID != 0) {
             const auto found = std::ranges::find_if(catalog, [&](const auto& snapshot) {

@@ -10,11 +10,19 @@
 #include <memory>
 #include <cstddef>
 #include <span>
+#include <string_view>
 #include <unordered_map>
 #include <string>
 
 namespace whereabouts
 {
+    [[nodiscard]] inline std::string PreferredNpcDisplayName(
+        std::string_view referenceName,
+        std::string_view baseName)
+    {
+        return !referenceName.empty() ? std::string(referenceName) : std::string(baseName);
+    }
+
     struct NpcSearchKeys
     {
         std::string name;

@@ -499,6 +499,7 @@ namespace whereabouts::ui
         const NpcSnapshot& npc,
         bool favorite = false)
     {
+        if (!npc.available) return {"Unavailable"};
         std::vector<std::string> labels;
         labels.reserve(6);
         labels.emplace_back(npc.alive ? "Alive" : "Dead");

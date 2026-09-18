@@ -1,5 +1,21 @@
 # Changelog
 
+## 2.0.2 - Runtime actor discovery correction
+
+- Correct the runtime-confirmed 2.0.1 regression where Skyrim's actor form-array bucket produced an empty NPC index and manual refresh repeated the same result.
+- Preserve 2.0.1 unchanged as runtime evidence while replacing its invalid discovery source with a deduplicated union of registered actor references and cell-owned persistent actor references.
+- Add source-count diagnostics so runtime logs report exactly how each NPC catalog was assembled.
+- Standard runtime confirmation indexed 1,804 NPCs with generic NPCs disabled and 6,357 with them enabled on the tested load order; totals remain load-order dependent. VR remains untested in game.
+
+## 2.0.1 - NPC discovery hotfix
+
+- Replace timing-sensitive global-form-map actor discovery with the pinned CommonLibSSE-NG actor form array.
+- Recover persistent NPC references that were previously omitted until they were loaded, spoken to, or recruited.
+- Use the effective base NPC name when an actor reference has no initialized display name.
+- Insert a valid console or crosshair target into the live catalog when it was absent from the initial rebuild.
+- Preserve the current tracked state when a previously omitted target is inserted into the live catalog.
+- Stop presenting a catalog omission as confirmed Dead, Disabled, and Unloaded state.
+
 ## 2.0.0 - Picker stability and separate experimental VR candidate
 
 - Fix Faction, Base Keyword, and other searchable filter pickers flickering when their Detailed-mode control is wider than the preferred popup width.
