@@ -4,6 +4,7 @@
 #include "Core/RuntimeIndexSnapshot.h"
 
 #include "Commands/CommandPolicy.h"
+#include "Commands/CommandActions.h"
 #include "Core/TrackingCompletion.h"
 #include "Persistence/Settings.h"
 #include "Persistence/Serialization.h"
@@ -29,8 +30,8 @@
 
 namespace whereabouts::ui
 {
-    inline constexpr std::array<const char*, 6> kPageNames{
-        "Search", "Locations", "Tracked NPCs", "Favorites", "Recent", "Settings"};
+    inline constexpr std::array<const char*, 7> kPageNames{
+        "Search", "Locations", "Tracked NPCs", "Favorites", "Recent", "NPC Inspector", "Settings"};
     inline constexpr const char* kFollowerFilterLabel{"Follower"};
 
     enum class SearchContent
@@ -93,9 +94,105 @@ namespace whereabouts::ui
         return 1;
     }
 
+    [[nodiscard]] constexpr int FilterGridColumns(
+        ResultDensity density,
+        float availableWidth,
+        float minimumControlWidth,
+        float itemSpacing) noexcept
+    {
+        const int maximumColumns = density == ResultDensity::Detailed ? 4 :
+            density == ResultDensity::Compact ? 5 : 6;
+        return ResponsiveControlColumns(
+            availableWidth, minimumControlWidth, itemSpacing, maximumColumns);
+    }
+
+    [[nodiscard]] constexpr int FilterGridRows(
+        std::size_t controls,
+        int columns) noexcept
+    {
+        if (controls == 0) return 0;
+        const auto safeColumns = static_cast<std::size_t>((std::max)(1, columns));
+        return static_cast<int>((controls + safeColumns - 1) / safeColumns);
+    }
+
+    enum class InspectorSearchPlacement
+    {
+        BesideSearch,
+        BelowSearch
+    };
+
+    [[nodiscard]] constexpr InspectorSearchPlacement ChooseInspectorSearchPlacement(
+        float availableWidth) noexcept
+    {
+        return availableWidth >= 900.0F ? InspectorSearchPlacement::BesideSearch :
+                                         InspectorSearchPlacement::BelowSearch;
+    }
+
+    [[nodiscard]] constexpr int InspectorCandidateColumns(float availableWidth) noexcept
+    {
+        if (availableWidth >= 900.0F) return 3;
+        if (availableWidth >= 560.0F) return 2;
+        return 1;
+    }
+
+    struct FilterDensityLayout
+    {
+        int primaryColumns{1};
+        int stateColumns{1};
+        int contextColumns{1};
+        int sortColumns{1};
+        int commandColumns{1};
+        int estimatedRowUnits{0};
+        bool showPrimaryLabels{true};
+    };
+
+    [[nodiscard]] constexpr FilterDensityLayout BuildFilterDensityLayout(
+        ResultDensity density,
+        float availableWidth,
+        float minimumControlWidth,
+        float itemSpacing) noexcept
+    {
+        const int primaryMaximum = density == ResultDensity::Detailed ? 2 :
+            density == ResultDensity::Compact ? 3 : 4;
+        const int stateMaximum = density == ResultDensity::Detailed ? 3 :
+            density == ResultDensity::Compact ? 4 : 5;
+        const int contextMaximum = density == ResultDensity::Detailed ? 2 :
+            density == ResultDensity::Compact ? 3 : 4;
+        const int sortMaximum = density == ResultDensity::Detailed ? 2 : 3;
+        const int commandMaximum = density == ResultDensity::Detailed ? 2 :
+            density == ResultDensity::Compact ? 3 : 4;
+        const float commandWidth = density == ResultDensity::Detailed ? 220.0F :
+            density == ResultDensity::Compact ? 175.0F : 150.0F;
+
+        FilterDensityLayout layout;
+        layout.primaryColumns = ResponsiveControlColumns(
+            availableWidth, minimumControlWidth, itemSpacing, primaryMaximum);
+        layout.stateColumns = ResponsiveControlColumns(
+            availableWidth, minimumControlWidth, itemSpacing, stateMaximum);
+        layout.contextColumns = ResponsiveControlColumns(
+            availableWidth, minimumControlWidth, itemSpacing, contextMaximum);
+        layout.sortColumns = ResponsiveControlColumns(
+            availableWidth, minimumControlWidth, itemSpacing, sortMaximum);
+        layout.commandColumns = ResponsiveControlColumns(
+            availableWidth, commandWidth, itemSpacing, commandMaximum);
+        layout.showPrimaryLabels = density == ResultDensity::Detailed;
+
+        const auto rowsFor = [](int controls, int columns) {
+            return (controls + columns - 1) / columns;
+        };
+        const int primaryRowUnits = rowsFor(4, layout.primaryColumns) *
+            (layout.showPrimaryLabels ? 2 : 1);
+        layout.estimatedRowUnits = primaryRowUnits +
+            rowsFor(5, layout.stateColumns) +
+            rowsFor(4, layout.contextColumns) +
+            rowsFor(3, layout.sortColumns);
+        return layout;
+    }
+
     struct RecordPickerLayout
     {
         float controlWidth{1.0F};
+        float popupMinWidth{1.0F};
         float popupMaxWidth{1.0F};
         float popupMaxHeight{1.0F};
     };
@@ -197,21 +294,12 @@ namespace whereabouts::ui
         const float width = availableWidth > 0.0F && availableWidth < infinity ?
             availableWidth : 1.0F;
         const float row = rowHeight > 0.0F && rowHeight < infinity ? rowHeight : 1.0F;
+        const float popupWidth = (std::min)(width, 420.0F);
         return {
-            (std::min)(width, 360.0F),
-            (std::min)(width, 420.0F),
+            width,
+            popupWidth,
+            width,
             row * 12.0F};
-    }
-
-    [[nodiscard]] constexpr float SelectedDetailsViewportHeight(
-        float remainingPageHeight,
-        float rowHeight) noexcept
-    {
-        constexpr float infinity = std::numeric_limits<float>::infinity();
-        if (remainingPageHeight > 0.0F && remainingPageHeight < infinity) {
-            return remainingPageHeight;
-        }
-        return rowHeight > 0.0F && rowHeight < infinity ? rowHeight : 1.0F;
     }
 
     [[nodiscard]] inline std::string JoinAdvancedFilterSummary(
@@ -420,6 +508,8 @@ namespace whereabouts::ui
         if (npc.potentialFollower) labels.emplace_back("Potential Follower");
         if (npc.tracked) labels.emplace_back("Tracked");
         if (favorite) labels.emplace_back("Favorite");
+        if (npc.actorFlagsKnown && npc.essential) labels.emplace_back("Essential");
+        if (npc.actorFlagsKnown && npc.protectedActor) labels.emplace_back("Protected");
         if (!npc.IsUniqueBase()) labels.emplace_back("Generic");
         return labels;
     }
@@ -1217,6 +1307,77 @@ namespace whereabouts::ui
         return matches;
     }
 
+    [[nodiscard]] inline std::vector<std::size_t> InspectorCandidateIndices(
+        std::span<const NpcSnapshot> rows,
+        std::string_view query,
+        std::size_t limit = 3)
+    {
+        const auto needle = FoldTextForSearch(query);
+        if (needle.empty() || limit == 0) return {};
+
+        std::vector<std::size_t> matches;
+        matches.reserve((std::min)(limit, rows.size()));
+        for (std::size_t index = 0; index < rows.size() && matches.size() < limit; ++index) {
+            const auto document = SavedListDocument(rows[index]);
+            if (FoldTextForSearch(document.name).contains(needle) ||
+                FoldTextForSearch(document.plugin).contains(needle) ||
+                FoldTextForSearch(document.identity).contains(needle) ||
+                FoldTextForSearch(document.location).contains(needle)) {
+                matches.push_back(index);
+            }
+        }
+        return matches;
+    }
+
+    [[nodiscard]] inline std::vector<std::string> OrderedAvailableCommandActions(
+        const Settings& settings)
+    {
+        std::vector<std::string> available;
+        available.reserve(kBuiltInCommandActions.size() + 2 + settings.customCommands.size());
+        bool actorFlagsAdded = false;
+        for (const auto& action : kBuiltInCommandActions) {
+            if (IsActorFlagActionID(action.id)) {
+                if (!actorFlagsAdded) {
+                    available.emplace_back(kActorFlagsGroupActionID);
+                    actorFlagsAdded = true;
+                }
+                continue;
+            }
+            available.emplace_back(action.id);
+        }
+        available.emplace_back(kCopyNpcReportActionID);
+        for (std::size_t slot = 0; slot < settings.customCommands.size(); ++slot) {
+            if (settings.customCommands[slot].enabled) {
+                available.push_back(CustomActionID(slot));
+            }
+        }
+        available.emplace_back(kCopyIdentityActionID);
+
+        std::vector<std::string> ordered;
+        ordered.reserve(available.size());
+        const auto append = [&](std::string_view actionID) {
+            if (std::ranges::find(available, actionID) == available.end() ||
+                std::ranges::find(ordered, actionID) != ordered.end()) {
+                return;
+            }
+            ordered.emplace_back(actionID);
+        };
+        for (const auto& actionID : settings.commandOrder) append(actionID);
+        for (const auto& actionID : available) append(actionID);
+        return ordered;
+    }
+
+    [[nodiscard]] inline std::vector<std::string> OrderedVisibleCommandActions(
+        const Settings& settings)
+    {
+        auto ordered = OrderedAvailableCommandActions(settings);
+        std::erase_if(ordered, [&](const auto& actionID) {
+            return std::ranges::find(settings.hiddenCommands, actionID) !=
+                settings.hiddenCommands.end();
+        });
+        return ordered;
+    }
+
     enum class ListSearchPlacement
     {
         BesideAction,
@@ -1488,6 +1649,33 @@ namespace whereabouts::ui
         [[nodiscard]] bool operator==(const RecordFilterOption&) const noexcept = default;
     };
 
+    enum class ProvenancePluginRole
+    {
+        Touching,
+        Original,
+        Winning
+    };
+
+    [[nodiscard]] inline std::vector<std::string> ProvenancePluginOptions(
+        std::span<const NpcSnapshot> rows,
+        ProvenancePluginRole role)
+    {
+        std::vector<std::string> values;
+        for (const auto& row : rows) {
+            if (!row.recordProjection || !row.recordProjection->provenance.known) continue;
+            const auto& provenance = row.recordProjection->provenance;
+            if (role == ProvenancePluginRole::Touching) {
+                values.insert(
+                    values.end(), provenance.touchingPlugins.begin(), provenance.touchingPlugins.end());
+            } else if (role == ProvenancePluginRole::Original) {
+                values.push_back(provenance.originalPlugin);
+            } else {
+                values.push_back(provenance.winningPlugin);
+            }
+        }
+        return BuildTextPickerOptions(values);
+    }
+
     [[nodiscard]] inline std::vector<RecordFilterOption> RecordFilterOptions(
         std::span<const NpcSnapshot> rows,
         RecordFacetCategory category)
@@ -1496,8 +1684,22 @@ namespace whereabouts::ui
         std::unordered_set<std::uint32_t> observed;
         for (const auto& row : rows) {
             if (!row.recordProjection) continue;
-            const auto& facets = category == RecordFacetCategory::Faction ?
-                row.recordProjection->factions : row.recordProjection->keywords;
+            std::span<const RecordFacet> facets;
+            if (category == RecordFacetCategory::Faction) {
+                facets = row.recordProjection->factions;
+            } else if (category == RecordFacetCategory::Keyword) {
+                facets = row.recordProjection->keywords;
+            } else {
+                const RecordFacet* facet = nullptr;
+                if (category == RecordFacetCategory::NpcClass && row.recordProjection->classKnown) {
+                    facet = &row.recordProjection->npcClass;
+                } else if (category == RecordFacetCategory::VoiceType && row.recordProjection->voiceTypeKnown) {
+                    facet = &row.recordProjection->voiceType;
+                } else if (category == RecordFacetCategory::CombatStyle && row.recordProjection->combatStyleKnown) {
+                    facet = &row.recordProjection->combatStyle;
+                }
+                if (facet) facets = std::span<const RecordFacet>{facet, 1};
+            }
             for (const auto& facet : facets) {
                 if (facet.runtimeFormID == 0 || !observed.insert(facet.runtimeFormID).second) {
                     continue;

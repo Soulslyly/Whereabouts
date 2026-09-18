@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <optional>
 #include <string>
+#include <string_view>
 
 namespace whereabouts
 {
@@ -19,6 +20,11 @@ namespace whereabouts
         EnableDisable,
         SelectConsole,
         Favorite,
+        StopCombat,
+        MakeEssential,
+        MakeProtected,
+        RemoveFlags,
+        RestoreOriginalFlags,
         Count
     };
 
@@ -40,6 +46,7 @@ namespace whereabouts
         bool confirmed{false};
         DisabledMoveChoice disabledMove{DisabledMoveChoice::None};
         std::optional<bool> requestedEnabled;
+        std::uint32_t baseDataOwnerRuntimeFormID{0};
     };
 
     [[nodiscard]] bool QueuesPapyrusWork(

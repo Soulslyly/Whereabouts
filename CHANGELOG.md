@@ -1,5 +1,42 @@
 # Changelog
 
+## 2.0.0 - Picker stability and separate experimental VR candidate
+
+- Fix Faction, Base Keyword, and other searchable filter pickers flickering when their Detailed-mode control is wider than the preferred popup width.
+- Keep Advanced Clear Filters as the final control in Detailed, Compact, Super Compact, and narrow wrapped layouts.
+- Replace the Main user-test candidate and add `Whereabouts-2.0.0-VR-Untested.zip`; both archives share the same non-DLL payload and install exactly one runtime-specific DLL.
+- Retain the 2.0.0 version label. VR remains compile-validated and explicitly untested in game.
+
+## 2.0.0 - User-test candidate
+
+- Rebuild common filter rows around fixed semantic groups with full-width controls, removing the screenshot-confirmed black gaps while retaining bounded searchable picker popups.
+- Add a global UI density plus independent Search, Filters, Advanced Filters, Results, Selected NPC, saved-list, and Inspector density overrides that default to Use Global and apply immediately.
+- Make every Selected NPC surface follow its page-owned scrolling flow, with Commands open and NPC Details closed by default.
+- Unify the SE/AE/GOG and experimental VR source while preserving provider-aware SMF/AMF admission and fail-closed runtime checks.
+- Integrate all translation resources into Main and remove the separate translation-download workflow.
+- Add template-aware record provenance/details and expanded provenance, conflict, class, voice, combat-style, level-scaling, Essential, and Protected data and filters.
+- Add independent Essential/Protected mutations with session-only restoration, Stop Combat, Copy NPC Report, validated custom commands, configurable command presentation, and independent single-row button/double-click actions.
+- Seed four disabled custom-command examples and let enabled custom commands execute immediately after validation without a confirmation modal.
+- Add opt-in Favorites sharing across saves and playthroughs while retaining the existing per-save Favorites record and default behavior.
+- Add a full-width NPC Inspector and make Detailed, Compact, and Super Compact command/filter layouts measurably density-aware while retaining the existing Selected NPC surfaces.
+- Preserve cosave schemas, public APIs, Recent/Favorites/Tracked storage and marker behavior, and the existing ESP/Papyrus payload.
+
+## 2.0.0 - Checkpoint 2 NPC record data and filters
+
+- Capture original, winning, and all touching plugins for effective NPC base records in load-order order, plus the count of references sharing each base in the current index.
+- Resolve class, voice type, combat style, and level-scaling data through category-specific bounded template chains.
+- Add constrained searchable provenance, multiple-plugin-record, record-count, class, voice, combat-style, and level-scaling filters without changing approved sorting.
+- Expose the same values in NPC Details and the future Inspector model; keep the full touching-plugin list closed by default.
+- Keep saves, public APIs, ESP, Papyrus, commands, tracking, staging, packaging, deployment, and publication unchanged.
+
+## 2.0.0 - Checkpoint 1 unified foundation
+
+- Preserve 1.1.1 and the experimental 1.1.0-vr.1 snapshot and open one shared 2.0.0 development tree from 1.1.1.
+- Build standard SE/AE/GOG and experimental VR DLLs from the same source while retaining provider-aware SMF/AMF admission and fail-closed runtime gates.
+- Include English and all eight translated resources in Main; stop producing a separate translation stage or archive.
+- Add normalized settings data for command confirmations, independent row-button/double-click actions, command visibility/order, and eight custom command slots. Invalid, disabled, or deleted custom assignments are neutralized immediately.
+- Keep cosave records, ESP, Papyrus, deployed mods, saves, profiles, GitHub, and Nexus unchanged. Focused tests and both affected Release compiles pass; Skyrim runtime validation remains pending.
+
 ## 1.1.1 - Menu framework provider compatibility
 
 - Accept either SKSE Menu Framework 3.14.x or newer within major version 3, or ApocryphaRealm Menu Framework 1.8.4 or newer within major version 1.

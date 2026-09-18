@@ -1,6 +1,6 @@
 # Whereabouts - Search, Locate, and Track NPCs
 
-Whereabouts adds searchable NPC and location explorers to SKSE Menu Framework. It can locate named NPC references and cells, optionally include clearly labeled generic NPCs and location results in the main search, travel to selected cells, capture a console-selected or crosshair NPC, show useful details, run guarded NPC commands, save favorites and recent selections per save, and maintain up to 100 map-marker tracking aliases.
+Whereabouts adds searchable NPC and location explorers to SKSE Menu Framework. It can locate named NPC references and cells, optionally include clearly labeled generic NPCs and location results in the main search, travel to selected cells, capture a console-selected or crosshair NPC, show useful details, run guarded NPC commands, keep favorites per save or optionally share them across playthroughs, and maintain up to 100 map-marker tracking aliases.
 
 ## Requirements
 
@@ -13,9 +13,9 @@ Whereabouts adds searchable NPC and location explorers to SKSE Menu Framework. I
 
 UIExtensions, MCM Helper, SkyUI MCM, and PapyrusUtil are not required.
 
-The universal DLL and dependency contracts are tool-validated for all three listed runtimes. SMF 3.14.0.0 and AMF 1.8.4.0 pass the exact required-export check. The 1.1.1 AMF correction still requires in-game confirmation after release.
+The standard DLL and dependency contracts are tool-validated for all three listed flat runtimes. SMF 3.14.0.0 and AMF 1.8.4.0 pass the exact required-export check. The unified source also builds an experimental VR target, but VR remains untested in game and is not included in the standard Main archive.
 
-Standard SKSE translation files are included for all nine Skyrim Special Edition languages. The Main archive ships clean English fallback text in every language file so translators can replace one file directly; optional machine translations are packaged separately. Whereabouts Settings can override its language without changing Skyrim's language, with a full restart required so the whole menu remains consistent.
+Standard SKSE translation files are included for all nine Skyrim Special Edition languages. The Main archive contains the translated resources, with English fallback text for any untranslated value. Whereabouts Settings can override its language without changing Skyrim's language, with a full restart required so the whole menu remains consistent.
 
 ## Features
 
@@ -28,12 +28,14 @@ Standard SKSE translation files are included for all nine Skyrim Special Edition
 - A clear Search content selector for NPCs only, NPCs and locations, or locations only, plus NPCs-first/locations-first mixed ordering and one shared configurable result cap
 - Confirmed location travel through Skyrim's typed cell-loading path after the SKSE menu has closed; no console command, raw relocation, save record, or extra plugin record is used
 - Searchable multi-select Plugin filtering, hybrid exact/contains Location filtering, and state, follower, loaded, favorite, tracked, generic-NPC, demographic, safety, spatial, worldspace, Faction, and Base Keyword filters
+- Searchable original-plugin, winning-plugin, touching-plugin, record-conflict-count, class, voice-type, combat-style, and level-scaling filters backed by template-aware record projection
+- NPC Details provenance showing original and winning plugins, touch count, and a closed-by-default complete touching-plugin list in load order
 - Generic NPCs are labeled with their exact reference FormID and stay out of ordinary searches by default; Same location or Followers automatically includes them for that filter context unless the user turns them off
 - Optional console-selected NPC capture when the framework opens, off by default, with independent crosshair fallback
 - Explicit Use Console Target and Use Crosshair Target controls
 - Independent, opt-in automatic console-target and crosshair-target selection; both default off
 - Clear Selection control that does not immediately recapture the same unchanged console target, plus a visible Console, Crosshair, Search, Tracked, Favorites, or Recent source label
-- Compact pinned name, FormID, location, and plugin summary with color-coded state tags, Commands open by default, and independently scrolling NPC Details in a closed section
+- A compact name, FormID, location, and plugin summary with color-coded state tags, Commands open by default, and NPC Details closed by default; the complete Selected NPC area follows its page's scrolling flow
 - Separate Location, Cell, and Worldspace details with runtime FormIDs, EditorIDs, exterior cell grid coordinates, and current, last-observed, or unavailable location status; interiors are identified as interiors rather than an unknown worldspace
 - Detailed or compact Location rows plus an immediate Copy menu for FormID, EditorID, stable plugin/local ID, or a ready-to-paste `coc EditorID` command
 - Theme-aware alternating list rows, clipped-text hover expansion, and display-only compact colored-letter status badges with delayed explanations (`A/E/L` or `D/X/U`, plus contextual `T/F/G/M`)
@@ -41,10 +43,14 @@ Standard SKSE translation files are included for all nine Skyrim Special Edition
 - Potential Follower Yes/No filter based on Skyrim's default potential-follower faction; this is descriptive and does not guarantee that recruitment dialogue is currently available
 - Case-insensitive name, FormID, stable identity, and EditorID search with conservative submitted-search typo suggestions
 - Unified whole-row NPC selection, Detailed/Compact/Super Compact result density, resizable/reorderable tables, Name/Status/Location header sorting, Random order, and a draggable Search results/details divider
-- Travel, Bring, Inventory, Track, Enable/Disable, Select in Console, and Favorite commands
+- Travel, Bring, Inventory, Track, Enable/Disable, Stop Combat, Copy NPC Report, Select in Console, and Favorite commands
+- Separate Essential and Protected tags plus one flag dropdown for Make Essential, Make Protected, Remove Flags, and session-only Restore Original Flags
+- Eight configurable validated custom console-command slots, four disabled examples, command visibility/order, and independent row-button and double-click actions that always target one NPC; enabled custom commands execute immediately after validation
+- Quick Action/QA row controls whose configured action and unavailable reason are exposed on hover
 - Risk-based confirmations for cross-cell/worldspace movement and risky disabling; dead NPCs are never automatically resurrected
 - Disabled-NPC relocation requires explicit confirmation, enables the NPC first, and can be cancelled
-- Favorites and unique most-recent-first selections stored per save using stable plugin/local FormID identities, with list search, pagination, transient Show all, and whole-page scrolling on Favorites, Recent, and Tracked
+- Favorites stored per save by default, with an optional Share Favorites between saves setting that synchronizes stable plugin/local identities across playthroughs
+- Unique most-recent-first selections stored per save, with list search, pagination, transient Show all, and whole-page scrolling on Favorites, Recent, and Tracked
 - Virtual Keyboard with Alphabetical and QWERTY layouts, live previews, and exact Cancel restoration
 - Distance shown in meters by default, with feet and raw game-unit alternatives
 - One tracking save-data warning per save, a persistent marker quest matching the original working lifecycle, and silent marker repair after load or a manual index refresh
@@ -56,7 +62,8 @@ Standard SKSE translation files are included for all nine Skyrim Special Edition
 - Optional More Informative Console label and lower-right details repaint after its real destination object reports ready; retries are frame-paced, bounded, and cancelled when the console closes, while ordinary console selection remains the fallback
 - Missing-plugin and unavailable-NPC labels for saved entries, plus conservative one-click cleanup of entries from missing plugins
 - Prepare for Uninstall cleanup that clears tracking aliases/markers, stops and resets the quest, clears Whereabouts save lists, and verifies completion before giving removal instructions
-- Six uncluttered pages: Search, Locations, Tracked NPCs, Favorites, Recent, and Settings
+- Seven uncluttered pages: Search, Locations, Tracked NPCs, Favorites, Recent, NPC Inspector, and Settings
+- A full-width NPC Inspector with responsive mini search results, identity/status, complete commands/details/provenance, and shared selection with the existing Selected NPC surfaces
 - Delayed mouse-hover help only for non-obvious controls and exact reasons on unavailable commands
 
 ## Installation
@@ -67,11 +74,11 @@ Open SKSE Menu Framework and choose the Whereabouts section. Use **Use Console T
 
 ## Configuration
 
-Global settings are stored in `Data/SKSE/Plugins/Whereabouts.ini`. The Settings page keeps language, result limits, Virtual Keyboard, distance, tracking, and maintenance choices easy to reach and places uncommon safety and diagnostic controls under Advanced. `Follow Skyrim` is the default language; an explicit choice changes only Whereabouts after a full restart. Search content, result ordering, and filters remain transient menu-session choices. Favorites, recent history, and the one-time tracking warning acknowledgement are stored per save. Whereabouts adds no gameplay keybind; it is opened and navigated through SKSE Menu Framework.
+Global settings are stored in `Data/SKSE/Plugins/Whereabouts.ini`. The Settings page keeps language, result limits, UI density, Virtual Keyboard, distance, Favorites sharing, commands, tracking, and maintenance choices easy to reach and places uncommon safety and diagnostic controls under Advanced. `Follow Skyrim` is the default language; an explicit choice changes only Whereabouts after a full restart. Search content, result ordering, and filters remain transient menu-session choices. Favorites remain per-save unless sharing is enabled; recent history and the one-time tracking warning acknowledgement are always stored per save. Whereabouts adds no gameplay keybind; it is opened and navigated through SKSE Menu Framework.
 
 ## Save safety and removal
 
-Whereabouts can be installed on an existing save. Favorites, Recent, the one-time warning acknowledgement, and missing-body history live only in the SKSE cosave and are harmless if their records are left behind. Active tracking uses quest aliases and should be cleaned before removal. Use **Settings > Prepare for Uninstall**, wait for the verified completion message, make a new manual save, exit Skyrim completely, and then remove the mod. A successfully cleaned, otherwise empty Whereabouts store writes no SKSE cosave records on that new save. If no NPC has ever been tracked, or every tracked NPC has already been untracked so no active aliases or markers remain, removal is expected to be low risk; the preparation button remains the safest route because it also stops and resets the resident tracking quest and clears Whereabouts save lists.
+Whereabouts can be installed on an existing save. Favorites, Recent, the one-time warning acknowledgement, and missing-body history continue to use the existing SKSE cosave records. Optional cross-save Favorites also use a separate shared Favorites file in Whereabouts' SKSE log directory; Prepare for Uninstall removes both stores. Active tracking uses quest aliases and should be cleaned before removal. Use **Settings > Prepare for Uninstall**, wait for the verified completion message, make a new manual save, exit Skyrim completely, and then remove the mod. A successfully cleaned, otherwise empty Whereabouts store writes no SKSE cosave records on that new save. If no NPC has ever been tracked, or every tracked NPC has already been untracked so no active aliases or markers remain, removal is expected to be low risk; the preparation button remains the safest route because it also stops and resets the resident tracking quest and clears Whereabouts save lists.
 
 Prepare for Uninstall does not undo intentional Travel, Bring, Enable, or Disable changes made earlier.
 
@@ -79,7 +86,7 @@ Prepare for Uninstall does not undo intentional Travel, Bring, Enable, or Disabl
 
 ## Building
 
-The native plugin uses CMake, Visual Studio 2022, vcpkg, the .NET 9 SDK, CommonLibSSE-NG v7.2.0, and the public SKSE Menu Framework consumer API implemented by either supported menu framework. Clone the GitHub repository with its pinned submodules, check out vcpkg commit `04a9d8e5212d01ee1dd9478eadd9caade4f8b0d4` at `.deps/vcpkg`, run its Windows bootstrap script, then configure and build with the supplied presets. `global.json` keeps PluginBuilder on .NET 9 with feature-band roll-forward. The release version is owned by `version.json`; required package versions and the vcpkg baseline are locked by `vcpkg.json`. GitHub is the source distribution; release downloads contain only the Main file and the optional machine-translation overwrite.
+The native plugin uses CMake, Visual Studio 2022, vcpkg, the .NET 9 SDK, CommonLibSSE-NG v7.2.0, and the public SKSE Menu Framework consumer API implemented by either supported menu framework. Clone the GitHub repository with its pinned submodules, check out vcpkg commit `04a9d8e5212d01ee1dd9478eadd9caade4f8b0d4` at `.deps/vcpkg`, run its Windows bootstrap script, then configure and build with the supplied presets. `global.json` keeps PluginBuilder on .NET 9 with feature-band roll-forward. The release version is owned by `version.json`; required package versions and the vcpkg baseline are locked by `vcpkg.json`. GitHub is the source distribution; the user-test download is one Main archive containing the DLL, plugin, scripts, settings, licenses, and all translation resources.
 
 Compile the four scripts in `papyrus/Source` with the official Papyrus compiler and matching Skyrim/SKSE imports. Put the matching SKSE source directory before the vanilla source directory so its extended declarations are authoritative. The typed Mutagen generator creates `Whereabouts.esp` independently with `dotnet run --project tools/PluginBuilder/Whereabouts.PluginBuilder.csproj -- build plugin/Whereabouts.esp`; no original or template plugin is required.
 

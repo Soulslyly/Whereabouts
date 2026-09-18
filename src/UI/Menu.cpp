@@ -50,6 +50,21 @@ namespace whereabouts::ui
                 TranslateFormat("Copied {} {}.", copied, selection.value);
         }
 
+        std::string ActionLabel(const Settings& settings, std::string_view actionID)
+        {
+            if (actionID == kDisabledActionID) return "Off";
+            if (actionID == kCopyNpcReportActionID) return "Copy NPC Report";
+            if (const auto command = CommandForActionID(actionID)) {
+                return CommandPolicy::Label(*command);
+            }
+            if (const auto slot = CustomSlotForActionID(actionID)) {
+                const auto& custom = settings.customCommands[*slot];
+                return custom.name.empty() ?
+                    std::format("Custom Command {}", *slot + 1) : custom.name;
+            }
+            return "Unavailable action";
+        }
+
     }
 
     Menu::Menu(
@@ -63,6 +78,7 @@ namespace whereabouts::ui
         CommandPolicy& commandPolicy,
         CommandService& commandService,
         SavedNpcStore& savedNpcs,
+        FavoriteService& favorites,
         Settings& settings,
         RuntimeSettingsState& runtimeSettings,
         const SettingsRepository& settingsRepository) noexcept :
@@ -76,6 +92,7 @@ namespace whereabouts::ui
         commandPolicy_(commandPolicy),
         commandService_(commandService),
         savedNpcs_(savedNpcs),
+        favorites_(favorites),
         settings_(settings),
         runtimeSettings_(runtimeSettings),
         settingsRepository_(settingsRepository),
@@ -95,7 +112,8 @@ namespace whereabouts::ui
         SKSEMenuFramework::AddSectionItem(TranslateText(kPageNames[2]), TrackedCallback);
         SKSEMenuFramework::AddSectionItem(TranslateText(kPageNames[3]), FavoritesCallback);
         SKSEMenuFramework::AddSectionItem(TranslateText(kPageNames[4]), RecentCallback);
-        SKSEMenuFramework::AddSectionItem(TranslateText(kPageNames[5]), SettingsCallback);
+        SKSEMenuFramework::AddSectionItem(TranslateText(kPageNames[5]), InspectorCallback);
+        SKSEMenuFramework::AddSectionItem(TranslateText(kPageNames[6]), SettingsCallback);
     }
     void __stdcall Menu::LocationsCallback()
     {
@@ -126,6 +144,12 @@ namespace whereabouts::ui
     {
         GuardCallbackVoid([] {
             if (auto* context = AcquireProcessContext()) context->menu.RenderRecent();
+        }, LogMenuCallbackException);
+    }
+    void __stdcall Menu::InspectorCallback()
+    {
+        GuardCallbackVoid([] {
+            if (auto* context = AcquireProcessContext()) context->menu.RenderInspector();
         }, LogMenuCallbackException);
     }
     void __stdcall Menu::SettingsCallback()
@@ -164,6 +188,7 @@ namespace whereabouts::ui
     void Menu::RequestSessionReset() noexcept
     {
         static_cast<void>(targets_.IssueSelectionRequest());
+        pendingSelectionSerial_.store(0, std::memory_order_release);
         sessionResetRequested_ = true;
     }
 
@@ -253,6 +278,23 @@ namespace whereabouts::ui
         } else if (baseKeywordFilter_) {
             filters.baseKeyword = baseKeywordFilter_;
         }
+        filters.touchingPlugins = touchingPluginFilters_;
+        filters.originalPlugins = originalPluginFilters_;
+        filters.winningPlugins = winningPluginFilters_;
+        filters.multiplePluginRecords = knownBooleanFilter(multiplePluginRecordsFilter_);
+        if (minimumPluginRecordCount_ > 0) {
+            filters.minimumPluginRecordCount = static_cast<std::size_t>(minimumPluginRecordCount_);
+        }
+        if (maximumPluginRecordCount_ > 0) {
+            filters.maximumPluginRecordCount = static_cast<std::size_t>(maximumPluginRecordCount_);
+        }
+        if (unknownClassOnly_) filters.unknownClassOnly = true;
+        else if (classFilter_) filters.npcClass = classFilter_;
+        if (unknownVoiceTypeOnly_) filters.unknownVoiceTypeOnly = true;
+        else if (voiceTypeFilter_) filters.voiceType = voiceTypeFilter_;
+        if (unknownCombatStyleOnly_) filters.unknownCombatStyleOnly = true;
+        else if (combatStyleFilter_) filters.combatStyle = combatStyleFilter_;
+        filters.levelScaled = knownBooleanFilter(levelScalingFilter_);
         filters.favoritesOnly = favoritesOnly_;
         filters.trackedOnly = trackedOnly_;
         filters.sameLocationOnly = sameLocationOnly_;
@@ -491,6 +533,7 @@ namespace whereabouts::ui
 
     void Menu::SyncSelectedTarget()
     {
+        if (pendingSelectionSerial_.load(std::memory_order_acquire) != 0) return;
         const auto target = targets_.Current();
         if (!target ||
             (target->ReferenceRuntimeID() == seenTargetFormID_ && target->source == selectedSource_)) return;
@@ -585,6 +628,7 @@ namespace whereabouts::ui
             }
             if (completion.operation == TrackingOperation::PrepareForUninstall) {
                 if (completion.succeeded) {
+                    const auto sharedFavoritesCleared = favorites_.ClearForUninstall();
                     savedNpcs_.Clear();
                     const auto clearedState = savedNpcs_.SnapshotAll();
                     logger::info(
@@ -594,6 +638,19 @@ namespace whereabouts::ui
                         clearedState.recent.size(),
                         clearedState.trackedDeaths.size(),
                         clearedState.trackingWarningAcknowledged);
+                    if (!sharedFavoritesCleared) {
+                        logger::error(
+                            "Prepare for Uninstall could not remove shared Favorites: {}",
+                            sharedFavoritesCleared.error());
+                        uninstallPhase_ = NextUninstallPhase(
+                            uninstallPhase_, UninstallEvent::Failure);
+                        tracking_.SetUninstallLocked(false);
+                        commandsBlocked_ = false;
+                        uninstallStatus_ = TranslateFormat(
+                            "{} Do not uninstall Whereabouts yet.",
+                            sharedFavoritesCleared.error());
+                        return;
+                    }
                     uninstallPhase_ = NextUninstallPhase(
                         uninstallPhase_, UninstallEvent::QuestCleared);
                     uninstallStatus_ = TranslateOwned(
@@ -668,6 +725,7 @@ namespace whereabouts::ui
     void Menu::QueueUseConsoleTarget()
     {
         const auto serial = targets_.IssueSelectionRequest();
+        pendingSelectionSerial_.store(0, std::memory_order_release);
         const auto token = operationEpoch_.Capture();
         if (!token || !SubmitGameTask(*token, [this, serial](OperationEpochToken) {
                 if (!targets_.IsSelectionRequestCurrent(serial)) return;
@@ -688,6 +746,7 @@ namespace whereabouts::ui
     void Menu::QueueUseCrosshairTarget()
     {
         const auto serial = targets_.IssueSelectionRequest();
+        pendingSelectionSerial_.store(0, std::memory_order_release);
         const auto token = operationEpoch_.Capture();
         if (!token || !SubmitGameTask(*token, [this, serial](OperationEpochToken) {
                 if (!targets_.IsSelectionRequestCurrent(serial)) return;
@@ -708,6 +767,7 @@ namespace whereabouts::ui
     void Menu::ClearSelection()
     {
         static_cast<void>(targets_.IssueSelectionRequest());
+        pendingSelectionSerial_.store(0, std::memory_order_release);
         selected_.reset();
         selectedLocation_.reset();
         pendingCommand_.reset();
@@ -720,24 +780,44 @@ namespace whereabouts::ui
     void Menu::SelectSnapshot(const NpcSnapshot& snapshot, TargetSource source)
     {
         const auto serial = targets_.IssueSelectionRequest();
+        pendingSelectionSerial_.store(serial, std::memory_order_release);
         selected_ = snapshot;
         selectedLocation_.reset();
         seenTargetFormID_ = snapshot.ReferenceRuntimeID();
         selectedSource_ = source;
         const auto token = operationEpoch_.Capture();
-        if (!token) return;
-        static_cast<void>(SubmitGameTask(*token, [this, snapshot, source, serial](OperationEpochToken) {
-                if (!targets_.IsSelectionRequestCurrent(serial)) return;
-                if (targets_.Select(snapshot, source) && snapshot.StableReference().IsPersistable()) {
-                    if (!targets_.IsSelectionRequestCurrent(serial)) return;
-                    static_cast<void>(savedNpcs_.RecordRecent({snapshot.StableReference(), snapshot.displayName}));
+        const auto clearPendingSelection = [this, serial] {
+            auto expected = serial;
+            static_cast<void>(pendingSelectionSerial_.compare_exchange_strong(
+                expected, 0, std::memory_order_acq_rel, std::memory_order_acquire));
+        };
+        if (!token) {
+            clearPendingSelection();
+            return;
+        }
+        if (!SubmitGameTask(*token, [this, snapshot, source, serial](OperationEpochToken) {
+                const auto clearPendingSelection = [this, serial] {
+                    auto expected = serial;
+                    static_cast<void>(pendingSelectionSerial_.compare_exchange_strong(
+                        expected, 0, std::memory_order_acq_rel, std::memory_order_acquire));
+                };
+                if (!targets_.IsSelectionRequestCurrent(serial)) {
+                    clearPendingSelection();
+                    return;
                 }
-            }));
+                if (targets_.Select(snapshot, source) && snapshot.StableReference().IsPersistable()) {
+                    if (targets_.IsSelectionRequestCurrent(serial)) {
+                        static_cast<void>(savedNpcs_.RecordRecent({snapshot.StableReference(), snapshot.displayName}));
+                    }
+                }
+                clearPendingSelection();
+            })) clearPendingSelection();
     }
 
     void Menu::SelectLocation(const LocationSnapshot& snapshot)
     {
         static_cast<void>(targets_.IssueSelectionRequest());
+        pendingSelectionSerial_.store(0, std::memory_order_release);
         targets_.ClearAndSuppressConsoleTarget();
         selected_.reset();
         selectedLocation_ = snapshot;
@@ -747,7 +827,7 @@ namespace whereabouts::ui
         SetLocationStatus({});
     }
 
-    void Menu::RenderDetails(bool scrollWithPage)
+    void Menu::RenderDetails(ResultDensity density)
     {
         if (selectedLocation_) {
             RenderLocationDetails();
@@ -762,12 +842,6 @@ namespace whereabouts::ui
             return;
         }
 
-        if (scrollWithPage || ImGuiMCP::BeginChild(
-                "##WhereaboutsSelectedNpcHost",
-                {0.0F, 0.0F},
-                ImGuiMCP::ImGuiChildFlags_None,
-                ImGuiMCP::ImGuiWindowFlags_NoScrollbar |
-                    ImGuiMCP::ImGuiWindowFlags_NoScrollWithMouse)) {
         const auto& npc = *selected_;
         const auto favorites = savedNpcs_.Favorites();
         const bool isFavorite = npc.StableReference().IsPersistable() &&
@@ -821,43 +895,38 @@ namespace whereabouts::ui
         if (ImGuiMCP::CollapsingHeader(
                     commandsHeading.c_str(),
                     ImGuiMCP::ImGuiTreeNodeFlags_DefaultOpen)) {
-                ImGuiMCP::Spacing();
-            const std::array commands{
-                CommandKind::Travel,
-                CommandKind::Bring,
-                CommandKind::Inventory,
-                CommandKind::Track,
-                CommandKind::EnableDisable,
-                CommandKind::SelectConsole,
-                CommandKind::Favorite};
+            if (density == ResultDensity::Detailed) ImGuiMCP::Spacing();
+            const auto* commandStyle = ImGuiMCP::GetStyle();
+            const auto commandLayout = BuildFilterDensityLayout(
+                density,
+                ImGuiMCP::GetContentRegionAvail().x,
+                180.0F,
+                commandStyle ? commandStyle->ItemSpacing.x : 8.0F);
+            int commandStyleVars = 0;
+            if (density != ResultDensity::Detailed && commandStyle) {
+                const float scale = density == ResultDensity::Compact ? 0.82F : 0.64F;
+                ImGuiMCP::PushStyleVar(
+                    ImGuiMCP::ImGuiStyleVar_FramePadding,
+                    {commandStyle->FramePadding.x, (std::max)(1.0F, commandStyle->FramePadding.y * scale)});
+                ImGuiMCP::PushStyleVar(
+                    ImGuiMCP::ImGuiStyleVar_ItemSpacing,
+                    {commandStyle->ItemSpacing.x, (std::max)(1.0F, commandStyle->ItemSpacing.y * scale)});
+                commandStyleVars = 2;
+            }
+            const auto commandActions = OrderedVisibleCommandActions(settings_);
             if (ImGuiMCP::BeginTable(
                     "##WhereaboutsCommands",
-                    2,
+                    commandLayout.commandColumns,
                     ImGuiMCP::ImGuiTableFlags_SizingStretchSame)) {
-                for (std::size_t index = 0; index <= commands.size(); ++index) {
-                    if (index % 2 == 0) ImGuiMCP::TableNextRow();
-                    static_cast<void>(ImGuiMCP::TableSetColumnIndex(static_cast<int>(index % 2)));
-                    if (index == commands.size()) {
-                        ImGuiMCP::SetNextItemWidth(-1.0F);
-                        if (ImGuiMCP::BeginCombo("##WhereaboutsCopyID", TranslateText("Copy ID"))) {
-                            const auto copy = [&](CopyIdentityKind kind, const char* label) {
-                                const auto localizedLabel = TranslateOwned(label);
-                                if (!ImGuiMCP::Selectable(localizedLabel.c_str())) return;
-                                const auto selection = ResolveCopyIdentity(npc, kind);
-                                if (!selection.value.empty()) {
-                                    ImGuiMCP::SetClipboardText(selection.value.c_str());
-                                }
-                                SetCommandStatus(LocalizedCopyConfirmation(selection));
-                            };
-                            copy(CopyIdentityKind::FormID, "FormID");
-                            copy(CopyIdentityKind::EditorID, "EditorID");
-                            copy(CopyIdentityKind::Stable, "Stable");
-                            ImGuiMCP::EndCombo();
-                        }
-                        DelayedTooltip(TranslateText("Choose which ID to copy."));
-                        continue;
-                    }
-                    const auto command = commands[index];
+                const auto beginCenteredCombo = [](const char* id, const char* preview) {
+                    ImGuiMCP::PushStyleVar(
+                        ImGuiMCP::ImGuiStyleVar_ButtonTextAlign,
+                        {0.5F, 0.5F});
+                    const bool open = ImGuiMCP::BeginCombo(id, preview);
+                    ImGuiMCP::PopStyleVar();
+                    return open;
+                };
+                const auto renderCommand = [&](CommandKind command) {
                     const auto check = commandPolicy_.Check(command, npc, settings_);
                     const char* label = CommandPolicy::Label(command);
                     if (command == CommandKind::Track) label = npc.tracked ? "Untrack" : "Track";
@@ -868,6 +937,7 @@ namespace whereabouts::ui
                         check.decision == CommandDecision::Unavailable;
                     ImGuiMCP::BeginDisabled(unavailable);
                     const auto localizedLabel = TranslateOwned(label);
+                    const auto labelWidth = ImGuiMCP::GetContentRegionAvail().x;
                     if (ImGuiMCP::Button(localizedLabel.c_str(), {-1.0F, 0.0F})) RequestCommand(command);
                     ImGuiMCP::EndDisabled();
                     if (unavailable) {
@@ -887,10 +957,99 @@ namespace whereabouts::ui
                     } else if (command == CommandKind::EnableDisable) {
                         DelayedTooltip(TranslateText(
                             "Changes this NPC's enabled state and verifies the result."));
+                    } else {
+                        OverflowTooltip(localizedLabel, labelWidth);
                     }
+                };
+
+                for (const auto& actionID : commandActions) {
+                    if (actionID == kActorFlagsGroupActionID) {
+                        static_cast<void>(ImGuiMCP::TableNextColumn());
+                        ImGuiMCP::SetNextItemWidth(-1.0F);
+                        if (beginCenteredCombo(
+                                "##WhereaboutsActorFlags",
+                                TranslateText("Essential / Protected"))) {
+                            const auto token = operationEpoch_.Capture();
+                            const auto owner = npc.recordProjection ?
+                                npc.recordProjection->baseDataOwnerRuntimeFormID : 0;
+                            for (const auto& flagAction : kBuiltInCommandActions) {
+                                if (!IsActorFlagActionID(flagAction.id)) continue;
+                                const auto command = flagAction.command;
+                                const auto check = commandPolicy_.Check(command, npc, settings_);
+                                const bool restoreUnavailable =
+                                    command == CommandKind::RestoreOriginalFlags &&
+                                    (!token || !commandService_.HasOriginalFlags(owner, *token));
+                                const bool unavailable = commandsBlocked_ || restoreUnavailable ||
+                                    check.decision == CommandDecision::Unavailable;
+                                ImGuiMCP::BeginDisabled(unavailable);
+                                if (ImGuiMCP::Selectable(
+                                        TranslateText(CommandPolicy::Label(command)))) {
+                                    RequestCommand(command);
+                                }
+                                ImGuiMCP::EndDisabled();
+                                if (unavailable) {
+                                    const auto reason = restoreUnavailable ?
+                                        TranslateOwned("No original flags were captured this session.") :
+                                        TranslateOwned(check.reason);
+                                    DelayedTooltip(
+                                        reason.c_str(),
+                                        ImGuiMCP::ImGuiHoveredFlags_AllowWhenDisabled);
+                                }
+                            }
+                            ImGuiMCP::EndCombo();
+                        }
+                        DelayedTooltip(TranslateText(
+                            "Changes independent Essential and Protected flags on the effective base NPC."));
+                        continue;
+                    }
+
+                    static_cast<void>(ImGuiMCP::TableNextColumn());
+                    if (actionID == kCopyIdentityActionID) {
+                        ImGuiMCP::SetNextItemWidth(-1.0F);
+                        if (beginCenteredCombo("##WhereaboutsCopyID", TranslateText("Copy ID"))) {
+                            const auto copy = [&](CopyIdentityKind kind, const char* label) {
+                                const auto localizedLabel = TranslateOwned(label);
+                                if (!ImGuiMCP::Selectable(localizedLabel.c_str())) return;
+                                const auto selection = ResolveCopyIdentity(npc, kind);
+                                if (!selection.value.empty()) {
+                                    ImGuiMCP::SetClipboardText(selection.value.c_str());
+                                }
+                                SetCommandStatus(LocalizedCopyConfirmation(selection));
+                            };
+                            copy(CopyIdentityKind::FormID, "FormID");
+                            copy(CopyIdentityKind::EditorID, "EditorID");
+                            copy(CopyIdentityKind::Stable, "Stable");
+                            ImGuiMCP::EndCombo();
+                        }
+                        DelayedTooltip(TranslateText("Choose which ID to copy."));
+                        continue;
+                    }
+                    if (actionID == kCopyNpcReportActionID) {
+                        const auto localizedLabel = TranslateOwned("Copy NPC Report");
+                        const auto labelWidth = ImGuiMCP::GetContentRegionAvail().x;
+                        if (ImGuiMCP::Button(localizedLabel.c_str(), {-1.0F, 0.0F})) {
+                            const auto report = FormatNpcReport(npc);
+                            ImGuiMCP::SetClipboardText(report.c_str());
+                            SetCommandStatus("Copied NPC report.");
+                        }
+                        OverflowTooltip(localizedLabel, labelWidth);
+                        continue;
+                    }
+                    if (const auto customSlot = CustomSlotForActionID(actionID)) {
+                        const auto& custom = settings_.customCommands[*customSlot];
+                        const auto labelWidth = ImGuiMCP::GetContentRegionAvail().x;
+                        if (ImGuiMCP::Button(custom.name.c_str(), {-1.0F, 0.0F})) {
+                            RequestCustomCommand(*customSlot);
+                        }
+                        OverflowTooltip(custom.name, labelWidth);
+                        continue;
+                    }
+                    if (const auto command = CommandForActionID(actionID)) renderCommand(*command);
                 }
+
                 ImGuiMCP::EndTable();
             }
+            if (commandStyleVars > 0) ImGuiMCP::PopStyleVar(commandStyleVars);
 
             const auto status = CommandStatus();
             if (!status.empty()) {
@@ -903,15 +1062,6 @@ namespace whereabouts::ui
         const auto detailsHeading = std::format(
                 "{}###WhereaboutsSelectedNpcDetails", TranslateText("NPC Details"));
         if (ImGuiMCP::CollapsingHeader(detailsHeading.c_str())) {
-            const float selectedDetailsHeight = scrollWithPage ?
-                ImGuiMCP::GetTextLineHeightWithSpacing() * 10.0F :
-                SelectedDetailsViewportHeight(
-                    ImGuiMCP::GetContentRegionAvail().y,
-                    ImGuiMCP::GetFrameHeightWithSpacing());
-            if (ImGuiMCP::BeginChild(
-                    "##WhereaboutsSelectedNpcDetailsBody",
-                    {0.0F, selectedDetailsHeight},
-                    ImGuiMCP::ImGuiChildFlags_None)) {
                 const auto sourceLabel = TargetSourceLabel(selectedSource_);
                 const auto reference = std::format(
                     "{}:{:06X}",
@@ -925,6 +1075,23 @@ namespace whereabouts::ui
                     (npc.essential && npc.protectedActor ? " " : "") +
                     (npc.protectedActor ? TranslateText("Protected") :
                         (npc.essential ? "" : TranslateText("None")));
+                std::string originalFlags = TranslateOwned("Not captured");
+                if (const auto token = operationEpoch_.Capture()) {
+                    const auto owner = npc.recordProjection ?
+                        npc.recordProjection->baseDataOwnerRuntimeFormID : 0;
+                    if (const auto original = commandService_.OriginalFlags(owner, *token)) {
+                        if (original->essential && original->protectedActor) {
+                            originalFlags = std::format(
+                                "{}, {}", TranslateText("Essential"), TranslateText("Protected"));
+                        } else if (original->essential) {
+                            originalFlags = TranslateOwned("Essential");
+                        } else if (original->protectedActor) {
+                            originalFlags = TranslateOwned("Protected");
+                        } else {
+                            originalFlags = TranslateOwned("No flags");
+                        }
+                    }
+                }
                 const auto state = std::format(
                     "{}, {}, {}",
                     TranslateText(npc.alive ? "Alive" : "Dead"),
@@ -958,7 +1125,68 @@ namespace whereabouts::ui
                     const auto* sex = npc.sex == NpcSex::Male ? TranslateText("Male") :
                         npc.sex == NpcSex::Female ? TranslateText("Female") : TranslateText("Unknown");
                     row(TranslateText("Sex"), sex);
+                    const auto* projection = npc.recordProjection.get();
+                    const auto facetValue = [&](bool known, const RecordFacet& facet) {
+                        if (!known) return TranslateOwned("Unknown");
+                        return facet.label.empty() ? TranslateOwned("None") : facet.label;
+                    };
+                    row(TranslateText("Class"), projection ?
+                        facetValue(projection->classKnown, projection->npcClass) : TranslateOwned("Unknown"));
+                    row(TranslateText("Voice type"), projection ?
+                        facetValue(projection->voiceTypeKnown, projection->voiceType) : TranslateOwned("Unknown"));
+                    row(TranslateText("Combat style"), projection ?
+                        facetValue(projection->combatStyleKnown, projection->combatStyle) : TranslateOwned("Unknown"));
+                    std::string scaling = TranslateOwned("Unknown");
+                    if (projection && projection->levelScaling.known) {
+                        const auto& value = projection->levelScaling;
+                        scaling = value.playerLevelMult ?
+                            TranslateFormat("PC level x {:.3f} (min {}, max {})",
+                                static_cast<float>(value.value) / 1000.0F,
+                                value.minimum, value.maximum) :
+                            TranslateFormat("Fixed level {}", value.value);
+                    }
+                    row(TranslateText("Level scaling"), scaling);
+                    row(TranslateText("Indexed references sharing this base"),
+                        std::to_string(npc.indexedReferencesSharingBase));
+                    if (projection && projection->baseDataOwnerRuntimeFormID != 0) {
+                        row(TranslateText("Effective Base Data owner"),
+                            std::format("{:08X}", projection->baseDataOwnerRuntimeFormID));
+                        row(TranslateText("Indexed references sharing this Base Data owner"),
+                            std::to_string(npc.indexedReferencesSharingBaseDataOwner));
+                    }
+                    const bool provenanceKnown = projection && projection->provenance.known;
+                    row(TranslateText("Original plugin"), provenanceKnown ?
+                        projection->provenance.originalPlugin : TranslateOwned("Unknown"));
+                    row(TranslateText("Winning plugin"), provenanceKnown ?
+                        projection->provenance.winningPlugin : TranslateOwned("Unknown"));
+                    row(TranslateText("Touch count"), provenanceKnown ?
+                        std::to_string(projection->provenance.PluginRecordCount()) :
+                        TranslateOwned("Unknown"));
                     ImGuiMCP::EndTable();
+                }
+
+                const auto touchingHeading = std::format(
+                    "{}###WhereaboutsTouchingPlugins", TranslateText("All touching plugins"));
+                if (ImGuiMCP::CollapsingHeader(touchingHeading.c_str())) {
+                    const auto* projection = npc.recordProjection.get();
+                    if (!projection || !projection->provenance.known) {
+                        ImGuiMCP::TextDisabled("%s", TranslateText("Unknown"));
+                    } else {
+                        const float touchingHeight = (std::min)(
+                            static_cast<float>(projection->provenance.touchingPlugins.size()),
+                            7.0F) * ImGuiMCP::GetTextLineHeightWithSpacing();
+                        if (ImGuiMCP::BeginChild(
+                                "##WhereaboutsTouchingPluginsBody",
+                                {0.0F, (std::max)(touchingHeight, ImGuiMCP::GetTextLineHeightWithSpacing())},
+                                ImGuiMCP::ImGuiChildFlags_None)) {
+                        for (const auto& plugin : projection->provenance.touchingPlugins) {
+                            const auto availableWidth = ImGuiMCP::GetContentRegionAvail().x;
+                            ImGuiMCP::BulletText("%s", plugin.c_str());
+                            OverflowTooltip(plugin, availableWidth);
+                        }
+                        }
+                        ImGuiMCP::EndChild();
+                    }
                 }
 
                 ImGuiMCP::Spacing();
@@ -974,6 +1202,7 @@ namespace whereabouts::ui
                     row(TranslateText("Magicka"), std::format("{:.0f}", npc.magicka));
                     row(TranslateText("Stamina"), std::format("{:.0f}", npc.stamina));
                     row(TranslateText("Flags"), flags);
+                    row(TranslateText("Original flags this session"), originalFlags);
                     row(TranslateText("State"), state);
                     row(TranslateText("Follower"), TranslateText(npc.teammate ? "Yes" : "No"));
                     row(TranslateText("Potential Follower"), TranslateText(npc.potentialFollower ? "Yes" : "No"));
@@ -1019,11 +1248,7 @@ namespace whereabouts::ui
                     row(TranslateText("Distance"), distance);
                     ImGuiMCP::EndTable();
                 }
-            }
-            ImGuiMCP::EndChild();
-            }
         }
-        if (!scrollWithPage) ImGuiMCP::EndChild();
 
     }
 
@@ -1186,6 +1411,15 @@ namespace whereabouts::ui
             SetCommandStatus("Whereabouts commands are blocked after uninstall cleanup.");
             return;
         }
+        if (command == CommandKind::RestoreOriginalFlags) {
+            const auto token = operationEpoch_.Capture();
+            const auto owner = selected_->recordProjection ?
+                selected_->recordProjection->baseDataOwnerRuntimeFormID : 0;
+            if (!token || !commandService_.HasOriginalFlags(owner, *token)) {
+                SetCommandStatus("No original flags were captured this session.");
+                return;
+            }
+        }
         if (command == CommandKind::EnableDisable) {
             std::optional<PendingEnabledState> pending;
             {
@@ -1207,24 +1441,178 @@ namespace whereabouts::ui
             SetCommandStatus(check.reason);
             return;
         }
-        if (NeedsTrackingWarning(
+        const bool trackingWarning = NeedsTrackingWarning(
                 command,
                 selected_->tracked,
-                savedNpcs_.TrackingWarningAcknowledged())) {
+                savedNpcs_.TrackingWarningAcknowledged());
+        const auto route = ConfirmationRoute(
+            settings_.showCommandConfirmations, check.decision, trackingWarning);
+        if (route == CommandConfirmationRoute::TrackingWarning) {
             pendingCommand_ = command;
             pendingCommandRuntimeID_ = selected_->ReferenceRuntimeID();
             SetCommandStatus("Review the tracking save-data warning.");
             openTrackingWarning_ = true;
             return;
         }
-        if (check.decision == CommandDecision::Confirm) {
+        if (route == CommandConfirmationRoute::CommandConfirmation) {
             pendingCommand_ = command;
             pendingCommandRuntimeID_ = selected_->ReferenceRuntimeID();
             SetCommandStatus(check.reason);
             openCommandConfirmation_ = true;
             return;
         }
-        ExecuteCommand(command);
+        const bool disabledMove =
+            (command == CommandKind::Travel || command == CommandKind::Bring) &&
+            !selected_->enabled;
+        ExecuteCommand(command, {
+            .confirmed = !settings_.showCommandConfirmations,
+            .disabledMove = disabledMove ?
+                DisabledMoveChoice::EnableAndMove : DisabledMoveChoice::None});
+    }
+
+    void Menu::RequestCustomCommand(std::size_t slot)
+    {
+        if (!selected_ || slot >= settings_.customCommands.size()) return;
+        if (commandsBlocked_) {
+            SetCommandStatus("Whereabouts commands are blocked after uninstall cleanup.");
+            return;
+        }
+        const auto& custom = settings_.customCommands[slot];
+        if (!custom.enabled) {
+            SetCommandStatus("This custom command is disabled.");
+            return;
+        }
+        const auto validation = ValidateCustomCommand(custom.name, custom.command);
+        if (!validation) {
+            SetCommandStatus(validation.error());
+            return;
+        }
+        const auto expanded = ExpandCustomCommand(
+            custom.command,
+            selected_->ReferenceRuntimeID(),
+            selected_->BaseRuntimeID());
+        if (!expanded) {
+            SetCommandStatus(expanded.error());
+            return;
+        }
+        ExecuteCustomCommand(slot, *expanded);
+    }
+
+    void Menu::ExecuteCustomCommand(std::size_t slot, std::string expandedCommand)
+    {
+        if (!selected_ || slot >= settings_.customCommands.size()) return;
+        const auto snapshot = *selected_;
+        const auto label = settings_.customCommands[slot].name;
+        const auto token = operationEpoch_.Capture();
+        if (!token) {
+            SetCommandStatus("The current game session is not ready.");
+            return;
+        }
+        SetCommandStatus("Custom command queued.");
+        if (!SubmitGameTask(*token, [this, snapshot, label, command = std::move(expandedCommand)](
+                OperationEpochToken current) {
+                auto target = targets_.Current();
+                if (!target || target->ReferenceRuntimeID() != snapshot.ReferenceRuntimeID()) {
+                    if (!targets_.Select(snapshot, TargetSource::Search)) {
+                        SetCommandStatus("NPC is no longer available.");
+                        return;
+                    }
+                    target = targets_.Current();
+                }
+                if (!target) {
+                    SetCommandStatus("NPC is no longer available.");
+                    return;
+                }
+                const auto result = commandService_.ExecuteCustomCommand(
+                    *target, command, current);
+                if (!result) logger::warn("Custom command '{}' failed: {}", label, result.error());
+                SetCommandStatus(result ?
+                    TranslateFormat("{} dispatched.", label) : result.error());
+            })) {
+            SetCommandStatus("The current game session is not ready.");
+        }
+    }
+
+    void Menu::DispatchConfiguredAction(
+        const NpcSnapshot& npc,
+        TargetSource source,
+        std::string_view actionID)
+    {
+        SelectSnapshot(npc, source);
+        if (actionID.empty() || actionID == kDisabledActionID) return;
+        if (actionID == kCopyNpcReportActionID) {
+            const auto report = FormatNpcReport(npc);
+            ImGuiMCP::SetClipboardText(report.c_str());
+            SetCommandStatus("Copied NPC report.");
+            return;
+        }
+        if (const auto custom = CustomSlotForActionID(actionID)) {
+            RequestCustomCommand(*custom);
+            return;
+        }
+        if (const auto command = CommandForActionID(actionID)) {
+            RequestCommand(*command);
+            return;
+        }
+        SetCommandStatus("The configured quick action is unavailable.");
+    }
+
+    void Menu::HandleNpcRowActivation(
+        const RowInteraction& interaction,
+        const NpcSnapshot& npc,
+        TargetSource source)
+    {
+        if (interaction.activated) SelectSnapshot(npc, source);
+        if (interaction.hovered &&
+            ImGuiMCP::IsMouseDoubleClicked(ImGuiMCP::ImGuiMouseButton_Left)) {
+            DispatchConfiguredAction(npc, source, settings_.doubleClickAction);
+        }
+    }
+
+    void Menu::RenderQuickActionButton(
+        const NpcSnapshot& npc,
+        TargetSource source,
+        float width)
+    {
+        const auto& actionID = settings_.rowButtonAction;
+        if (actionID == kDisabledActionID) return;
+        const auto densityArea = source == TargetSource::Search ? UiDensityArea::Results :
+            source == TargetSource::Inspector ? UiDensityArea::Inspector : UiDensityArea::SavedLists;
+        const auto density = settings_.DensityFor(densityArea);
+        const auto label = density == ResultDensity::Detailed ?
+            TranslateText("Quick Action") : TranslateText("QA");
+        std::string unavailable;
+        if (const auto command = CommandForActionID(actionID)) {
+            const auto check = commandPolicy_.Check(*command, npc, settings_);
+            if (*command == CommandKind::RestoreOriginalFlags) {
+                const auto token = operationEpoch_.Capture();
+                const auto owner = npc.recordProjection ?
+                    npc.recordProjection->baseDataOwnerRuntimeFormID : 0;
+                if (!token || !commandService_.HasOriginalFlags(owner, *token)) {
+                    unavailable = "No original flags were captured this session.";
+                }
+            }
+            if (check.decision == CommandDecision::Unavailable) unavailable = check.reason;
+        } else if (const auto slot = CustomSlotForActionID(actionID)) {
+            const auto& custom = settings_.customCommands[*slot];
+            const auto validation = ValidateCustomCommand(custom.name, custom.command);
+            if (!custom.enabled || !validation) {
+                unavailable = validation ? "This custom command is disabled." : validation.error();
+            }
+        } else if (actionID != kCopyNpcReportActionID) {
+            unavailable = "The configured action is unavailable.";
+        }
+        ImGuiMCP::BeginDisabled(!unavailable.empty());
+        if (ImGuiMCP::Button(label, {width, 0.0F})) {
+            DispatchConfiguredAction(npc, source, actionID);
+        }
+        ImGuiMCP::EndDisabled();
+        const auto tooltip = unavailable.empty() ?
+            TranslateFormat("Runs: {}", ActionLabel(settings_, actionID)) :
+            TranslateFormat("{} - {}", ActionLabel(settings_, actionID), unavailable);
+        DelayedTooltip(
+            tooltip.c_str(),
+            unavailable.empty() ? 0 : ImGuiMCP::ImGuiHoveredFlags_AllowWhenDisabled);
     }
 
     void Menu::RenderRootModals()
@@ -1336,7 +1724,16 @@ namespace whereabouts::ui
         pendingLocationTravel_ = *selectedLocation_;
         locationTravelArmed_ = false;
         locationTravelGeneration_ = 0;
-        openLocationTravelConfirmation_ = true;
+        if (settings_.showCommandConfirmations) {
+            openLocationTravelConfirmation_ = true;
+        } else {
+            locationTravelGeneration_ = locationTravelGate_.Arm();
+            locationTravelArmed_ = true;
+            SetLocationStatus("Location travel queued.");
+            if (auto* mainWindow = SKSEMenuFramework::GetMainWindow()) {
+                mainWindow->IsOpen = false;
+            }
+        }
         logger::info(
             "Location travel requested: FormID {:08X}, {}",
             pendingLocationTravel_->runtimeFormID,
@@ -1579,6 +1976,7 @@ namespace whereabouts::ui
                 openTrackingWarning_ = false;
                 openLocationTravelConfirmation_ = false;
                 static_cast<void>(targets_.IssueSelectionRequest());
+                pendingSelectionSerial_.store(0, std::memory_order_release);
                 completions_.Clear();
                 {
                     std::scoped_lock lock(enabledStateMutex_);
@@ -1647,6 +2045,13 @@ namespace whereabouts::ui
                 })) {
                 return;
             }
+        }
+        if (command == CommandKind::MakeEssential ||
+            command == CommandKind::MakeProtected ||
+            command == CommandKind::RemoveFlags ||
+            command == CommandKind::RestoreOriginalFlags) {
+            options.baseDataOwnerRuntimeFormID = snapshot.recordProjection ?
+                snapshot.recordProjection->baseDataOwnerRuntimeFormID : 0;
         }
         CloseCommandSurfaces(command);
 
@@ -1923,8 +2328,9 @@ namespace whereabouts::ui
         std::string_view query,
         ListPaginationState& pagination)
     {
+        const auto density = settings_.DensityFor(UiDensityArea::SavedLists);
         if (entries.empty()) {
-            NormalizeListPagination(pagination, 0, 1, settings_.resultDensity);
+            NormalizeListPagination(pagination, 0, 1, density);
             ImGuiMCP::TextUnformatted(TranslateText("No entries."));
             return;
         }
@@ -1948,6 +2354,7 @@ namespace whereabouts::ui
         DelayedTooltip(TranslateText("Removes entries from missing plugins. Temporarily unavailable NPCs are kept."));
         if (removeUnavailable) {
             std::size_t removed = 0;
+            std::string removalError;
             const auto token = operationEpoch_.Capture();
             if (token) static_cast<void>(operationEpoch_.RunIfCurrent(*token, [&] {
                 const auto current = index_.Snapshot();
@@ -1956,12 +2363,19 @@ namespace whereabouts::ui
                 std::erase_if(unavailable, [&](const auto& identity) {
                     return index_.IsPluginLoaded(identity.plugin) || FindSnapshot(identity).has_value();
                 });
-                removed = source == TargetSource::Favorite ?
-                    savedNpcs_.RemoveFavorites(unavailable) : savedNpcs_.RemoveRecent(unavailable);
+                if (source == TargetSource::Favorite) {
+                    const auto result = favorites_.RemoveMany(unavailable);
+                    if (result) removed = *result;
+                    else removalError = result.error();
+                } else {
+                    removed = savedNpcs_.RemoveRecent(unavailable);
+                }
             }));
-            savedEntriesStatus_ = TranslateFormat(
-                removed == 1 ? "Removed {} unavailable entry." : "Removed {} unavailable entries.",
-                removed);
+            savedEntriesStatus_ = removalError.empty() ?
+                TranslateFormat(
+                    removed == 1 ? "Removed {} unavailable entry." : "Removed {} unavailable entries.",
+                    removed) :
+                removalError;
             return;
         }
         if (!savedEntriesStatus_.empty()) {
@@ -1976,13 +2390,13 @@ namespace whereabouts::ui
             searchDocuments.push_back(snapshot ? SavedListDocument(*snapshot) : SavedListDocument(entry));
         }
         const auto filteredRows = FilterSavedListRows(searchDocuments, query);
-        const bool showSecondary = ShowsSecondaryResultMetadata(settings_.resultDensity);
+        const bool showSecondary = ShowsSecondaryResultMetadata(density);
         const float measuredLineHeight = ImGuiMCP::GetTextLineHeightWithSpacing();
         const float rowHeight = measuredLineHeight * (showSecondary ? 2.0F : 1.0F);
         const auto pageCapacity = SavedListPageCapacity(
-            settings_.resultDensity, measuredLineHeight * 10.0F, rowHeight);
+            density, measuredLineHeight * 10.0F, rowHeight);
         NormalizeListPagination(
-            pagination, filteredRows.size(), pageCapacity, settings_.resultDensity);
+            pagination, filteredRows.size(), pageCapacity, density);
         if (filteredRows.empty()) {
             ImGuiMCP::TextUnformatted(TranslateText("No matching entries."));
             return;
@@ -1990,7 +2404,7 @@ namespace whereabouts::ui
         const auto page = VisibleSavedListPage(filteredRows.size(), pageCapacity, pagination);
 
         const auto pushedColors = PushThemeSafeRowColors();
-        const bool superCompact = IsSuperCompactResultDensity(settings_.resultDensity);
+        const bool superCompact = IsSuperCompactResultDensity(density);
         if (!ImGuiMCP::BeginTable(
                 superCompact ? "##WhereaboutsSuperCompactSavedEntries" :
                                "##WhereaboutsSavedEntries",
@@ -2014,7 +2428,11 @@ namespace whereabouts::ui
             ImGuiMCP::TableSetupColumn(
                 TranslateText("Location"), ImGuiMCP::ImGuiTableColumnFlags_WidthStretch, 0.31F);
         }
-        ImGuiMCP::TableSetupColumn(TranslateText("Action"), ImGuiMCP::ImGuiTableColumnFlags_WidthFixed, 90.0F);
+        ImGuiMCP::TableSetupColumn(
+            TranslateText("Action"),
+            ImGuiMCP::ImGuiTableColumnFlags_WidthFixed,
+            settings_.rowButtonAction == kDisabledActionID ? 90.0F :
+                density == ResultDensity::Detailed ? 225.0F : 145.0F);
         ImGuiMCP::TableHeadersRow();
 
         for (std::size_t pageIndex = 0; pageIndex < page.count; ++pageIndex) {
@@ -2108,11 +2526,20 @@ namespace whereabouts::ui
             }
             }
             ApplyUnifiedRowBackground(interaction, selected);
-            if (interaction.activated && snapshot) SelectSnapshot(*snapshot, source);
+            if (snapshot) HandleNpcRowActivation(interaction, *snapshot, source);
             static_cast<void>(ImGuiMCP::TableSetColumnIndex(superCompact ? 2 : 3));
+            if (snapshot && settings_.rowButtonAction != kDisabledActionID) {
+                const auto width = (std::max)(
+                    52.0F,
+                    ImGuiMCP::GetContentRegionAvail().x * 0.58F);
+                RenderQuickActionButton(*snapshot, source, width);
+                ImGuiMCP::SameLine();
+            }
             if (ImGuiMCP::Button(TranslateText("Remove"))) {
                 if (source == TargetSource::Favorite) {
-                    static_cast<void>(savedNpcs_.RemoveFavorite(entry.identity));
+                    if (const auto removed = favorites_.Remove(entry.identity); !removed) {
+                        savedEntriesStatus_ = removed.error();
+                    }
                 } else if (source == TargetSource::Recent) {
                     static_cast<void>(savedNpcs_.RemoveRecent(entry.identity));
                 }
@@ -2162,12 +2589,40 @@ namespace whereabouts::ui
         baseKeywordFilter_.reset();
         unknownBaseKeywordsOnly_ = false;
         baseKeywordFilterLabel_.clear();
+        touchingPluginFilters_.clear();
+        originalPluginFilters_.clear();
+        winningPluginFilters_.clear();
+        touchingPluginSearch_.fill('\0');
+        originalPluginSearch_.fill('\0');
+        winningPluginSearch_.fill('\0');
+        multiplePluginRecordsFilter_ = 0;
+        minimumPluginRecordCount_ = 0;
+        maximumPluginRecordCount_ = 0;
+        classFilter_.reset();
+        unknownClassOnly_ = false;
+        classFilterLabel_.clear();
+        voiceTypeFilter_.reset();
+        unknownVoiceTypeOnly_ = false;
+        voiceTypeFilterLabel_.clear();
+        combatStyleFilter_.reset();
+        unknownCombatStyleOnly_ = false;
+        combatStyleFilterLabel_.clear();
+        levelScalingFilter_ = 0;
         factionOptionSearch_.fill('\0');
         keywordOptionSearch_.fill('\0');
+        classOptionSearch_.fill('\0');
+        voiceTypeOptionSearch_.fill('\0');
+        combatStyleOptionSearch_.fill('\0');
         visibleFactionOptions_ = {};
         visibleKeywordOptions_ = {};
+        visibleClassOptions_ = {};
+        visibleVoiceTypeOptions_ = {};
+        visibleCombatStyleOptions_ = {};
         factionOptionResultsDirty_ = true;
         keywordOptionResultsDirty_ = true;
+        classOptionResultsDirty_ = true;
+        voiceTypeOptionResultsDirty_ = true;
+        combatStyleOptionResultsDirty_ = true;
     }
 
     void Menu::ResetFiltersToDefaults()

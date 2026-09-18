@@ -79,6 +79,7 @@ foreach ($language in @('ENGLISH','FRENCH','ITALIAN','GERMAN','SPANISH','POLISH'
     }
     New-Item -ItemType Directory -Path (Split-Path -Parent $machinePath) -Force | Out-Null
     [System.IO.File]::WriteAllText($machinePath, (($machineLines -join "`r`n") + "`r`n"), [System.Text.UnicodeEncoding]::new($false, $true))
+    [System.IO.File]::WriteAllText($runtimePath, (($machineLines -join "`r`n") + "`r`n"), [System.Text.UnicodeEncoding]::new($false, $true))
 }
 
 & (Join-Path $PSScriptRoot 'generate-translator-worksheet.ps1') -ProjectRoot $ProjectRoot

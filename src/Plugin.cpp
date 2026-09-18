@@ -5,6 +5,7 @@
 #include "Commands/CommandPolicy.h"
 #include "Commands/CommandService.h"
 #include "Compatibility/MenuFrameworkRuntime.h"
+#include "Compatibility/VrEnvironmentCompatibility.h"
 #include "Lifecycle/CallbackGuard.h"
 #include "Lifecycle/ProcessContext.h"
 #include "Persistence/Serialization.h"
@@ -22,6 +23,12 @@ namespace
 {
     constexpr std::string_view kSettingsPath = "Data/SKSE/Plugins/Whereabouts.ini";
     std::atomic<whereabouts::AppContext*> appContext{nullptr};
+
+    std::filesystem::path SharedFavoritesPath()
+    {
+        const auto directory = SKSE::log::log_directory();
+        return directory ? *directory / "WhereaboutsFavorites.bin" : std::filesystem::path{};
+    }
 
     whereabouts::AppContext* Context() noexcept
     {
@@ -97,6 +104,9 @@ namespace
                 logger::warn("Session boundary {} became stale before resume", token.value);
                 return;
             }
+            if (const auto merged = context->favorites.MergeSharedForSession(); !merged) {
+                logger::error("Shared Favorites merge failed: {}", merged.error());
+            }
             logger::info(
                 "Operation session {} ready after {}",
                 token.value,
@@ -113,6 +123,23 @@ namespace
         }
 
         if (message->type != SKSE::MessagingInterface::kDataLoaded) return;
+
+        const auto vrProbe = whereabouts::ProbeLoadedVrEnvironment();
+        const auto vrCompatibility = whereabouts::DecideVrEnvironmentCompatibility(
+#if defined(EXCLUSIVE_SKYRIM_VR)
+            true,
+#else
+            false,
+#endif
+            vrProbe.dataHandlerAvailable,
+            vrProbe.lightPluginLoaded);
+        if (vrCompatibility != whereabouts::VrEnvironmentCompatibility::Compatible) {
+            logger::error(
+                "Skyrim VR environment rejected: {}; "
+                "Whereabouts VR requires Skyrim VR ESL Support and a loaded Whereabouts.esp",
+                whereabouts::VrEnvironmentCompatibilityLabel(vrCompatibility));
+            return;
+        }
 
         const auto frameworkProbe = whereabouts::ProbeLoadedMenuFramework();
         const auto frameworkCompatibility = whereabouts::DecideMenuFrameworkCompatibility(
@@ -199,14 +226,21 @@ SKSEPluginVersion = []() constexpr {
     version.UsesAddressLibrary();
     version.UsesNoStructs();
     version.versionIndependenceEx |= SKSE::PluginVersionData::kVersionIndependentEx_AddressLibraryV5;
-        version.MinimumRequiredXSEVersion(REL::Version{2, 0, 20, 0});
+#if defined(EXCLUSIVE_SKYRIM_VR)
+    version.MinimumRequiredXSEVersion(REL::Version{2, 0, 12, 0});
+#else
+    version.MinimumRequiredXSEVersion(REL::Version{2, 0, 20, 0});
+#endif
     return version;
 }();
 
-SKSE_EXPORT bool SKSEPlugin_Query(SKSE::QueryInterface*, SKSE::PluginInfo* pluginInfo)
+SKSE_EXPORT bool SKSEPlugin_Query(SKSE::QueryInterface* query, SKSE::PluginInfo* pluginInfo)
 {
-    return whereabouts::GuardCallback([pluginInfo] {
-        if (!pluginInfo) return false;
+    return whereabouts::GuardCallback([query, pluginInfo] {
+        if (!query || !pluginInfo || query->IsEditor()) return false;
+#if defined(EXCLUSIVE_SKYRIM_VR)
+        if (query->RuntimeVersion() != REL::Version{1, 4, 15, 0}) return false;
+#endif
         pluginInfo->infoVersion = SKSE::PluginInfo::kVersion;
         pluginInfo->name = "Whereabouts";
         pluginInfo->version = REL::Version{
@@ -238,7 +272,8 @@ SKSEPluginLoad(const SKSE::LoadInterface* skse)
         auto loadedSettings = settingsLoader.Load();
         auto contextOwner = std::make_unique<whereabouts::AppContext>(
             std::move(loadedSettings.settings),
-            kSettingsPath);
+            kSettingsPath,
+            SharedFavoritesPath());
         if (contextOwner->settings.debugLogging) spdlog::set_level(spdlog::level::debug);
         for (const auto& warning : loadedSettings.warnings) logger::warn("Settings: {}", warning);
 

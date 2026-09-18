@@ -8,6 +8,9 @@
 #include <cstdint>
 #include <optional>
 #include <memory>
+#include <cstddef>
+#include <span>
+#include <unordered_map>
 #include <string>
 
 namespace whereabouts
@@ -31,6 +34,8 @@ namespace whereabouts
         std::string referenceEditorID;
         std::string baseEditorID;
         std::shared_ptr<const NpcRecordProjection> recordProjection;
+        std::size_t indexedReferencesSharingBase{0};
+        std::size_t indexedReferencesSharingBaseDataOwner{0};
         SpatialSnapshot spatial;
         std::string race;
         NpcSex sex{NpcSex::Unknown};
@@ -83,4 +88,22 @@ namespace whereabouts
             return identity.IsUniqueBase();
         }
     };
+
+    inline void ApplyIndexedReferenceCounts(std::span<NpcSnapshot> rows)
+    {
+        std::unordered_map<std::uint32_t, std::size_t> counts;
+        std::unordered_map<std::uint32_t, std::size_t> ownerCounts;
+        for (const auto& row : rows) {
+            if (row.BaseRuntimeID() != 0) ++counts[row.BaseRuntimeID()];
+            if (row.recordProjection && row.recordProjection->baseDataOwnerRuntimeFormID != 0) {
+                ++ownerCounts[row.recordProjection->baseDataOwnerRuntimeFormID];
+            }
+        }
+        for (auto& row : rows) {
+            row.indexedReferencesSharingBase = row.BaseRuntimeID() == 0 ? 0 : counts[row.BaseRuntimeID()];
+            const auto owner = row.recordProjection ?
+                row.recordProjection->baseDataOwnerRuntimeFormID : 0;
+            row.indexedReferencesSharingBaseDataOwner = owner == 0 ? 0 : ownerCounts[owner];
+        }
+    }
 }

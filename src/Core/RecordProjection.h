@@ -7,6 +7,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <span>
 #include <string>
 #include <unordered_map>
 #include <utility>
@@ -20,7 +21,9 @@ namespace whereabouts
     enum class TemplateDataCategory : std::uint16_t
     {
         Traits = 1U << 0U,
+        Stats = 1U << 1U,
         Factions = 1U << 2U,
+        AIData = 1U << 4U,
         BaseData = 1U << 7U,
         Keywords = 1U << 12U
     };
@@ -113,8 +116,58 @@ namespace whereabouts
         [[nodiscard]] bool operator==(const RecordFacet&) const noexcept = default;
     };
 
+    struct RecordProvenance
+    {
+        bool known{false};
+        std::string originalPlugin;
+        std::string winningPlugin;
+        std::vector<std::string> touchingPlugins;
+
+        [[nodiscard]] std::size_t PluginRecordCount() const noexcept
+        {
+            return known ? touchingPlugins.size() : 0;
+        }
+
+        [[nodiscard]] bool HasMultiplePluginRecords() const noexcept
+        {
+            return known && touchingPlugins.size() > 1;
+        }
+
+        [[nodiscard]] bool operator==(const RecordProvenance&) const noexcept = default;
+    };
+
+    [[nodiscard]] inline RecordProvenance BuildRecordProvenance(
+        std::span<const std::string> sourceFiles)
+    {
+        RecordProvenance result;
+        for (const auto& source : sourceFiles) {
+            if (!source.empty()) result.touchingPlugins.push_back(source);
+        }
+        if (result.touchingPlugins.empty()) return result;
+        result.known = true;
+        result.originalPlugin = result.touchingPlugins.front();
+        result.winningPlugin = result.touchingPlugins.back();
+        return result;
+    }
+
+    struct LevelScalingObservation
+    {
+        bool known{false};
+        bool playerLevelMult{false};
+        std::uint16_t value{0};
+        std::uint16_t minimum{0};
+        std::uint16_t maximum{0};
+
+        [[nodiscard]] bool operator==(const LevelScalingObservation&) const noexcept = default;
+    };
+
     struct NpcRecordProjection
     {
+        RecordProvenance provenance;
+        std::uint32_t baseDataOwnerRuntimeFormID{0};
+        std::uint32_t statsOwnerRuntimeFormID{0};
+        std::uint32_t traitsOwnerRuntimeFormID{0};
+        std::uint32_t aiDataOwnerRuntimeFormID{0};
         ActorFlagObservation actorFlags;
         bool traitsKnown{false};
         NpcSex sex{NpcSex::Unknown};
@@ -123,6 +176,13 @@ namespace whereabouts
         std::vector<RecordFacet> factions;
         bool keywordsKnown{false};
         std::vector<RecordFacet> keywords;
+        bool classKnown{false};
+        RecordFacet npcClass;
+        bool voiceTypeKnown{false};
+        RecordFacet voiceType;
+        bool combatStyleKnown{false};
+        RecordFacet combatStyle;
+        LevelScalingObservation levelScaling;
 
         [[nodiscard]] bool operator==(const NpcRecordProjection&) const noexcept = default;
     };
@@ -130,7 +190,10 @@ namespace whereabouts
     enum class RecordFacetCategory
     {
         Faction,
-        Keyword
+        Keyword,
+        NpcClass,
+        VoiceType,
+        CombatStyle
     };
 
     struct RecordFilterSelection
@@ -145,8 +208,14 @@ namespace whereabouts
         const NpcRecordProjection& projection,
         RecordFacetCategory category) noexcept
     {
-        return category == RecordFacetCategory::Faction ?
-            projection.factionsKnown : projection.keywordsKnown;
+        switch (category) {
+        case RecordFacetCategory::Faction: return projection.factionsKnown;
+        case RecordFacetCategory::Keyword: return projection.keywordsKnown;
+        case RecordFacetCategory::NpcClass: return projection.classKnown;
+        case RecordFacetCategory::VoiceType: return projection.voiceTypeKnown;
+        case RecordFacetCategory::CombatStyle: return projection.combatStyleKnown;
+        }
+        return false;
     }
 
     [[nodiscard]] inline bool MatchesRecordFacet(
@@ -154,12 +223,19 @@ namespace whereabouts
         RecordFacetCategory category,
         std::uint32_t runtimeFormID) noexcept
     {
-        const auto& facets = category == RecordFacetCategory::Faction ?
-            projection.factions : projection.keywords;
-        for (const auto& facet : facets) {
-            if (facet.runtimeFormID == runtimeFormID) return true;
+        if (category == RecordFacetCategory::Faction || category == RecordFacetCategory::Keyword) {
+            const auto& facets = category == RecordFacetCategory::Faction ?
+                projection.factions : projection.keywords;
+            for (const auto& facet : facets) {
+                if (facet.runtimeFormID == runtimeFormID) return true;
+            }
+            return false;
         }
-        return false;
+        const RecordFacet* facet = nullptr;
+        if (category == RecordFacetCategory::NpcClass) facet = &projection.npcClass;
+        else if (category == RecordFacetCategory::VoiceType) facet = &projection.voiceType;
+        else if (category == RecordFacetCategory::CombatStyle) facet = &projection.combatStyle;
+        return facet && facet->runtimeFormID == runtimeFormID;
     }
 
     template <class Factory>

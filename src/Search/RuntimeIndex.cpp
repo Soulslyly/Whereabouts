@@ -249,8 +249,12 @@ namespace whereabouts
             switch (category) {
             case TemplateDataCategory::Traits:
                 return RE::ACTOR_BASE_DATA::TEMPLATE_USE_FLAG::kTraits;
+            case TemplateDataCategory::Stats:
+                return RE::ACTOR_BASE_DATA::TEMPLATE_USE_FLAG::kStats;
             case TemplateDataCategory::Factions:
                 return RE::ACTOR_BASE_DATA::TEMPLATE_USE_FLAG::kFactions;
+            case TemplateDataCategory::AIData:
+                return RE::ACTOR_BASE_DATA::TEMPLATE_USE_FLAG::kAIData;
             case TemplateDataCategory::BaseData:
                 return RE::ACTOR_BASE_DATA::TEMPLATE_USE_FLAG::kBaseData;
             case TemplateDataCategory::Keywords:
@@ -303,8 +307,20 @@ namespace whereabouts
             NpcRecordProjection projection;
             if (!base) return projection;
 
+            if (const auto* files = base->sourceFiles.array) {
+                std::vector<std::string> sources;
+                sources.reserve(files->size());
+                for (const auto* file : *files) {
+                    if (file && !file->GetFilename().empty()) {
+                        sources.emplace_back(file->GetFilename());
+                    }
+                }
+                projection.provenance = BuildRecordProvenance(sources);
+            }
+
             const auto baseData = ResolveNpcTemplateOwner(base, TemplateDataCategory::BaseData);
             if (baseData.state == TemplateResolutionState::Known && baseData.owner) {
+                projection.baseDataOwnerRuntimeFormID = baseData.owner->GetFormID();
                 projection.actorFlags = {
                     .known = true,
                     .essential = baseData.owner->IsEssential(),
@@ -313,8 +329,12 @@ namespace whereabouts
 
             const auto traits = ResolveNpcTemplateOwner(base, TemplateDataCategory::Traits);
             if (traits.state == TemplateResolutionState::Known && traits.owner) {
+                projection.traitsOwnerRuntimeFormID = traits.owner->GetFormID();
                 projection.traitsKnown = true;
                 projection.race = CopyFormName(traits.owner->race);
+                projection.voiceTypeKnown = true;
+                projection.voiceType = CaptureRecordFacet(
+                    traits.owner->voiceType, {}, editorIds);
                 switch (traits.owner->GetSex()) {
                 case RE::SEX::kMale:
                     projection.sex = NpcSex::Male;
@@ -326,6 +346,30 @@ namespace whereabouts
                     projection.sex = NpcSex::Unknown;
                     break;
                 }
+            }
+
+            const auto stats = ResolveNpcTemplateOwner(base, TemplateDataCategory::Stats);
+            if (stats.state == TemplateResolutionState::Known && stats.owner) {
+                projection.statsOwnerRuntimeFormID = stats.owner->GetFormID();
+                projection.classKnown = true;
+                projection.npcClass = CaptureRecordFacet(
+                    stats.owner->npcClass, CopyFormName(stats.owner->npcClass), editorIds);
+                projection.levelScaling = {
+                    .known = true,
+                    .playerLevelMult = stats.owner->HasPCLevelMult(),
+                    .value = stats.owner->actorData.level,
+                    .minimum = stats.owner->actorData.calcLevelMin,
+                    .maximum = stats.owner->actorData.calcLevelMax};
+            }
+
+            const auto aiData = ResolveNpcTemplateOwner(base, TemplateDataCategory::AIData);
+            if (aiData.state == TemplateResolutionState::Known && aiData.owner) {
+                projection.aiDataOwnerRuntimeFormID = aiData.owner->GetFormID();
+                projection.combatStyleKnown = true;
+                projection.combatStyle = CaptureRecordFacet(
+                    aiData.owner->combatStyle,
+                    {},
+                    editorIds);
             }
 
             const auto factions = ResolveNpcTemplateOwner(base, TemplateDataCategory::Factions);
@@ -631,6 +675,7 @@ namespace whereabouts
             return captured.error();
         }
         auto rebuilt = std::move(*captured);
+        ApplyIndexedReferenceCounts(rebuilt);
 
         auto capturedLocations = locationCatalogCapture_ ? locationCatalogCapture_() :
             std::expected<std::vector<LocationSnapshot>, IndexFailure>{
@@ -718,6 +763,51 @@ namespace whereabouts
         }
         auto catalog = *view->catalog;
         catalog[static_cast<std::size_t>(found - view->catalog->begin())].enabled = enabled;
+        published_.store(
+            MakeIndexContentView(view, NextRevision(), std::move(catalog)),
+            std::memory_order_release);
+        targetedCloneCount_.fetch_add(1, std::memory_order_relaxed);
+        return true;
+    }
+
+    bool RuntimeIndex::SetExpectedActorFlagsForOwner(
+        std::uint32_t ownerRuntimeFormID,
+        bool essential,
+        bool protectedActor)
+    {
+        if (ownerRuntimeFormID == 0) return false;
+        std::scoped_lock lock(writerMutex_);
+        const auto view = Snapshot();
+        if (!view) return false;
+        auto catalog = *view->catalog;
+        bool found = false;
+        bool changed = false;
+        std::shared_ptr<const NpcRecordProjection> replacement;
+        for (auto& row : catalog) {
+            if (!row.recordProjection ||
+                row.recordProjection->baseDataOwnerRuntimeFormID != ownerRuntimeFormID) {
+                continue;
+            }
+            found = true;
+            if (!replacement) {
+                auto projection = *row.recordProjection;
+                projection.actorFlags = {true, essential, protectedActor};
+                replacement = std::make_shared<const NpcRecordProjection>(std::move(projection));
+            }
+            if (!row.actorFlagsKnown || row.essential != essential ||
+                row.protectedActor != protectedActor || row.recordProjection != replacement) {
+                row.actorFlagsKnown = true;
+                row.essential = essential;
+                row.protectedActor = protectedActor;
+                row.recordProjection = replacement;
+                changed = true;
+            }
+        }
+        if (!found) return false;
+        if (!changed) {
+            noOpSuppressionCount_.fetch_add(1, std::memory_order_relaxed);
+            return true;
+        }
         published_.store(
             MakeIndexContentView(view, NextRevision(), std::move(catalog)),
             std::memory_order_release);

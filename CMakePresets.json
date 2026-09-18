@@ -27,6 +27,14 @@
       "name": "vs2022-release",
       "inherits": "vs2022-base",
       "binaryDir": "${sourceDir}/build/vs2022-release"
+    },
+    {
+      "name": "vs2022-vr-release",
+      "inherits": "vs2022-base",
+      "binaryDir": "${sourceDir}/build/vs2022-vr-release",
+      "cacheVariables": {
+        "WHEREABOUTS_EXPERIMENTAL_VR": "ON"
+      }
     }
   ],
   "buildPresets": [
@@ -38,6 +46,11 @@
     {
       "name": "vs2022-release",
       "configurePreset": "vs2022-release",
+      "configuration": "Release"
+    },
+    {
+      "name": "vs2022-vr-release",
+      "configurePreset": "vs2022-vr-release",
       "configuration": "Release"
     }
   ],
@@ -53,6 +66,14 @@
     {
       "name": "vs2022-release",
       "configurePreset": "vs2022-release",
+      "configuration": "Release",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "vs2022-vr-release",
+      "configurePreset": "vs2022-vr-release",
       "configuration": "Release",
       "output": {
         "outputOnFailure": true

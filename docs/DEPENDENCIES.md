@@ -1,4 +1,4 @@
-# Whereabouts 1.1.1 Dependency Lock
+# Whereabouts 2.0.0 Dependency Lock
 
 ## Local build environment
 
@@ -66,8 +66,8 @@ Installed game and mod-manager paths are read-only evidence and are intentionall
 ## API observations
 
 - The pinned SMF header declares `SetSection`, `AddSectionItem`, `AddEvent`, `AddInputEvent`, `GetMainWindow`, and a legacy float-version function. Whereabouts neither resolves nor calls that legacy function; compatibility uses the DLL fixed version and the complete required-export probe.
-- The installed SMF 3.14.0.0 DLL passes the current derived 82-export contract covering every ImGui wrapper currently called by Whereabouts plus its critical framework exports. Its SHA-256 is `FE7F398B62DDF23D2EA4C163A0EBFA2BFF80D19B7462224F037F79FA057EA67A`.
-- The installed AMF 1.8.4.0 DLL passes the same derived 82-export contract. Its SHA-256 is `2BB69DF05DD9C3E56C27642F45511C754F754772B63B2AAAB16A99B2FCFF7A2B`.
+- The installed SMF 3.14.0.0 DLL passes the current derived 88-export contract covering every ImGui wrapper currently called by Whereabouts plus its critical framework exports. Its SHA-256 is `FE7F398B62DDF23D2EA4C163A0EBFA2BFF80D19B7462224F037F79FA057EA67A`.
+- The installed AMF 1.8.4.0 DLL passes the same derived 88-export contract. Its SHA-256 is `2BB69DF05DD9C3E56C27642F45511C754F754772B63B2AAAB16A99B2FCFF7A2B`.
 - The owner-only exact-binary path is supplied through the disposable `WHEREABOUTS_SMF_DLL` CMake cache value. It is never written into source or release archives.
 - SMF render and event callbacks use `__stdcall`; drawing calls are under `ImGuiMCP`.
 - The pinned header is byte-for-byte identical to the current official API repository copy.
@@ -89,4 +89,4 @@ The generator fixes the plugin name, HEDR 1.71 light allocation, Skyrim.esm mast
 
 ## Release verification
 
-Use the supplied Release checklist and production validators for the Main and optional Translation files, plus the separate GitHub source-manifest validator. Fresh Papyrus outputs are normalized only in their compiler-owned PEX header metadata and then validated before staging. Independent compiler runs can still renumber internal temporary symbols, so PEX payload byte identity is not a valid semantic gate; the PSC inputs, exact compiler/import set, successful compile, and canonical privacy metadata are the reproducibility evidence. Compiler success and structural plugin validation do not prove game behavior. The 1.1.1 candidate requires final-hash in-game acceptance for AMF and retains the existing runtime qualification limits. No runtime claim follows from the dependency matrix alone.
+Use the supplied Release checklist and production validators for the merged Main file, plus the separate GitHub source-manifest validator. Fresh Papyrus outputs are normalized only in their compiler-owned PEX header metadata and then validated before staging. Independent compiler runs can still renumber internal temporary symbols, so PEX payload byte identity is not a valid semantic gate; the PSC inputs, exact compiler/import set, successful compile, and canonical privacy metadata are the reproducibility evidence. Compiler success and structural plugin validation do not prove game behavior. The 2.0.0 candidate requires final-hash in-game acceptance for every advertised flat runtime and retains the experimental, untested VR status. No runtime claim follows from the dependency matrix alone.

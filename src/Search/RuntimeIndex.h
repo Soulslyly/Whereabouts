@@ -61,6 +61,10 @@ namespace whereabouts
         [[nodiscard]] bool SetExpectedEnabledState(
             std::uint32_t runtimeFormID,
             bool enabled);
+        [[nodiscard]] bool SetExpectedActorFlagsForOwner(
+            std::uint32_t ownerRuntimeFormID,
+            bool essential,
+            bool protectedActor);
         [[nodiscard]] bool RefreshRuntimeAndTracking(
             std::uint32_t runtimeFormID,
             std::span<const std::uint32_t> trackedRuntimeFormIDs);

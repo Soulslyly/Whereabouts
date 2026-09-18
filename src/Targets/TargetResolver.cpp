@@ -154,11 +154,23 @@ namespace whereabouts
         const auto* crosshair = RE::CrosshairPickData::GetSingleton();
         if (!crosshair) return {};
 
-        for (const auto& handle : {crosshair->targetActor, crosshair->target}) {
+        const auto actorFrom = [](const RE::ObjectRefHandle& handle) -> RE::NiPointer<RE::Actor> {
             const auto reference = handle.get();
             auto* actor = reference ? reference->As<RE::Actor>() : nullptr;
-            if (IsValidActor(actor)) return actor->GetHandle().get();
+            return IsValidActor(actor) ? actor->GetHandle().get() : RE::NiPointer<RE::Actor>{};
+        };
+#if defined(EXCLUSIVE_SKYRIM_FLAT)
+        for (const auto& handle : {crosshair->targetActor, crosshair->target}) {
+            if (auto actor = actorFrom(handle)) return actor;
         }
+#else
+        for (const auto& handle : crosshair->targetActor) {
+            if (auto actor = actorFrom(handle)) return actor;
+        }
+        for (const auto& handle : crosshair->target) {
+            if (auto actor = actorFrom(handle)) return actor;
+        }
+#endif
         return {};
     }
 

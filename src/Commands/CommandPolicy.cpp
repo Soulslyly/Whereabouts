@@ -1,4 +1,5 @@
 #include "Commands/CommandPolicy.h"
+#include "Commands/CommandActions.h"
 
 namespace whereabouts
 {
@@ -83,6 +84,11 @@ namespace whereabouts
             return true;
         case CommandKind::SelectConsole:
         case CommandKind::Favorite:
+        case CommandKind::StopCombat:
+        case CommandKind::MakeEssential:
+        case CommandKind::MakeProtected:
+        case CommandKind::RemoveFlags:
+        case CommandKind::RestoreOriginalFlags:
         case CommandKind::Count:
             return false;
         }
@@ -100,6 +106,11 @@ namespace whereabouts
         case CommandKind::Track:
         case CommandKind::EnableDisable:
         case CommandKind::Favorite:
+        case CommandKind::StopCombat:
+        case CommandKind::MakeEssential:
+        case CommandKind::MakeProtected:
+        case CommandKind::RemoveFlags:
+        case CommandKind::RestoreOriginalFlags:
         case CommandKind::Count:
             return false;
         }
@@ -164,6 +175,27 @@ namespace whereabouts
 
         case CommandKind::SelectConsole:
             return {CommandDecision::Allowed, {}};
+        case CommandKind::StopCombat:
+            if (!npc.loaded) {
+                return {CommandDecision::Unavailable, "NPC must be loaded to stop combat"};
+            }
+            return {CommandDecision::Allowed, {}};
+        case CommandKind::MakeEssential:
+        case CommandKind::MakeProtected:
+        case CommandKind::RemoveFlags:
+        case CommandKind::RestoreOriginalFlags:
+        {
+            const auto owner = npc.recordProjection ?
+                npc.recordProjection->baseDataOwnerRuntimeFormID : 0;
+            if (!npc.actorFlagsKnown || owner == 0) {
+                return {CommandDecision::Unavailable,
+                    "The effective base NPC flags are unavailable"};
+            }
+            auto reason = SharedBaseWarning(
+                npc.indexedReferencesSharingBaseDataOwner);
+            if (reason.empty()) reason = "Confirm changing this NPC's effective base flags";
+            return {CommandDecision::Confirm, std::move(reason)};
+        }
         case CommandKind::Count:
             break;
         }
@@ -180,6 +212,11 @@ namespace whereabouts
         case CommandKind::EnableDisable: return "Enable / Disable";
         case CommandKind::SelectConsole: return "Select in Console";
         case CommandKind::Favorite: return "Favorite";
+        case CommandKind::StopCombat: return "Stop Combat";
+        case CommandKind::MakeEssential: return "Make Essential";
+        case CommandKind::MakeProtected: return "Make Protected";
+        case CommandKind::RemoveFlags: return "Remove Flags";
+        case CommandKind::RestoreOriginalFlags: return "Restore Original Flags";
         case CommandKind::Count: break;
         }
         return "Command";

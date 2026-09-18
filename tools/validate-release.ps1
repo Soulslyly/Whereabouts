@@ -2,6 +2,7 @@
 param(
     [string]$Version,
     [switch]$RequireArchives,
+    [switch]$RequireVrArchive,
     [string]$MenuFrameworkDll
 )
 
@@ -24,9 +25,12 @@ if ($RequireArchives) {
         -MenuFrameworkDll $MenuFrameworkDll `
         -ProjectRoot $snapshotRoot
 }
+if ($RequireVrArchive -and -not $RequireArchives) {
+    throw 'RequireVrArchive also requires RequireArchives.'
+}
 
 $runtimeStage = Join-Path $snapshotRoot 'staging/runtime'
-$translationStage = Join-Path $snapshotRoot 'staging/translations'
+$vrStage = Join-Path $snapshotRoot 'staging/vr'
 $releaseRoot = Join-Path $snapshotRoot 'release'
 $languages = @('ENGLISH', 'FRENCH', 'ITALIAN', 'GERMAN', 'SPANISH', 'POLISH', 'CHINESE', 'RUSSIAN', 'JAPANESE')
 $requiredRuntime = @(
@@ -44,8 +48,6 @@ $requiredRuntime = @(
     'Whereabouts.esp'
 ) + @($languages | ForEach-Object { "Interface/Translations/Whereabouts_$_.txt" })
 $requiredRuntime = @($requiredRuntime | Sort-Object)
-$requiredTranslations = @($languages | Where-Object { $_ -ne 'ENGLISH' } |
-    ForEach-Object { "Interface/Translations/Whereabouts_$_.txt" } | Sort-Object)
 
 function Get-RelativeFiles([string]$Root) {
     $rootPath = [System.IO.Path]::GetFullPath($Root).TrimEnd('\')
@@ -125,27 +127,54 @@ function Assert-PexMetadata([string]$Root) {
     }
 }
 
+function Assert-RuntimeStagesDifferOnlyByDll([string]$MainRoot, [string]$VrRoot) {
+    $mainFiles = Get-RelativeFiles $MainRoot
+    $vrFiles = Get-RelativeFiles $VrRoot
+    if ([string]::Join("`n", $mainFiles) -ne [string]::Join("`n", $vrFiles)) {
+        throw 'Main and VR staging inventories differ.'
+    }
+    foreach ($relative in $mainFiles) {
+        $mainHash = Get-Sha256 (Join-Path $MainRoot ($relative -replace '/', '\'))
+        $vrHash = Get-Sha256 (Join-Path $VrRoot ($relative -replace '/', '\'))
+        if ($relative -eq 'SKSE/Plugins/Whereabouts.dll') {
+            if ($mainHash -eq $vrHash) { throw 'Main and VR runtime DLLs must be distinct builds.' }
+        }
+        elseif ($mainHash -ne $vrHash) {
+            throw "Main and VR shared payload differs: $relative"
+        }
+    }
+}
+
 if (-not (Test-Path -LiteralPath $runtimeStage -PathType Container)) { throw 'Runtime stage is missing.' }
-if (-not (Test-Path -LiteralPath $translationStage -PathType Container)) { throw 'Translation stage is missing.' }
 $actualRuntime = Get-RelativeFiles $runtimeStage
 if ([string]::Join("`n", $actualRuntime) -ne [string]::Join("`n", $requiredRuntime)) {
     throw 'Runtime stage does not match the explicit deployable allowlist.'
 }
-$actualTranslations = Get-RelativeFiles $translationStage
-if ([string]::Join("`n", $actualTranslations) -ne [string]::Join("`n", $requiredTranslations)) {
-    throw 'Translation stage does not match the eight-file overwrite allowlist.'
-}
 Assert-RuntimeBinaryHygiene (Join-Path $runtimeStage 'SKSE/Plugins/Whereabouts.dll')
 Assert-PexMetadata $runtimeStage
+if ($RequireVrArchive) {
+    if (-not (Test-Path -LiteralPath $vrStage -PathType Container)) { throw 'VR stage is missing.' }
+    $actualVr = Get-RelativeFiles $vrStage
+    if ([string]::Join("`n", $actualVr) -ne [string]::Join("`n", $requiredRuntime)) {
+        throw 'VR stage does not match the explicit deployable allowlist.'
+    }
+    Assert-RuntimeBinaryHygiene (Join-Path $vrStage 'SKSE/Plugins/Whereabouts.dll')
+    Assert-PexMetadata $vrStage
+    Assert-RuntimeStagesDifferOnlyByDll $runtimeStage $vrStage
+}
 
 if ($RequireArchives) {
     $archives = [ordered]@{
         "Whereabouts-$Version-Main.zip" = $runtimeStage
-        "Whereabouts-$Version-Translations.zip" = $translationStage
     }
-    $sourceArchive = Join-Path $releaseRoot "Whereabouts-$Version-Source.zip"
-    if (Test-Path -LiteralPath $sourceArchive -PathType Leaf) {
-        throw 'Release directory contains a forbidden Source ZIP.'
+    if ($RequireVrArchive) {
+        $archives["Whereabouts-$Version-VR-Untested.zip"] = $vrStage
+    }
+    $expectedArchives = @($archives.Keys | Sort-Object)
+    $actualArchives = @(Get-ChildItem -LiteralPath $releaseRoot -Filter '*.zip' -File |
+        Select-Object -ExpandProperty Name | Sort-Object)
+    if ([string]::Join("`n", $actualArchives) -ne [string]::Join("`n", $expectedArchives)) {
+        throw 'Release directory does not contain exactly the required runtime ZIPs.'
     }
     foreach ($item in $archives.GetEnumerator()) {
         $archivePath = Join-Path $releaseRoot $item.Key

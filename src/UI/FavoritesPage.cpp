@@ -37,7 +37,13 @@ namespace whereabouts::ui
                 ImGuiMCP::ImGuiWindowFlags_AlwaysAutoResize)) {
             ImGuiMCP::TextUnformatted(TranslateText("Remove every favorite from this save?"));
             if (ImGuiMCP::Button(TranslateText("Clear"))) {
-                savedNpcs_.ClearFavorites();
+                static_cast<void>(favorites_.Clear());
+                if (settings_.shareFavoritesAcrossSaves) {
+                    settings_.shareFavoritesAcrossSaves = false;
+                    SaveSettings();
+                    savedEntriesStatus_ = TranslateOwned(
+                        "Favorites were cleared from this save. Sharing was turned off and the shared list was preserved.");
+                }
                 ResetListPaginationForQuery(favoriteListPagination_);
                 ImGuiMCP::CloseCurrentPopup();
             }
@@ -47,7 +53,7 @@ namespace whereabouts::ui
         }
         if (selected_) {
             ImGuiMCP::Separator();
-            RenderDetails(true);
+            RenderDetails(settings_.DensityFor(UiDensityArea::SelectedNpc));
         }
         }
         ImGuiMCP::EndChild();

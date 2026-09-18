@@ -1,8 +1,9 @@
-Whereabouts 1.1.1
-Parent: Whereabouts 1.1.0
-Status: Tool-validated SMF/AMF compatibility maintenance release; Skyrim AMF retest pending
+Whereabouts 2.0.0
+Parent: Whereabouts 1.1.1
+Merge evidence: Whereabouts 1.1.0-vr.1
+Status: Replacement merged-Main user-test candidate packaged and tool-validated after the post-runtime-feedback corrections
 Source baseline: Whereabouts 1.0.2+layout.5
-Public release predecessor: Whereabouts 1.1.0
+Public release predecessor: Whereabouts 1.1.1
 Created: 2026-09-16
 Runtime development target: Skyrim 1.6.1170
 Runtime targets: Skyrim 1.5.97, 1.6.1170, and 1.7.104

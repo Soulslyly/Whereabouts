@@ -3,8 +3,13 @@
 namespace whereabouts
 {
     RuntimeSettingsState::RuntimeSettingsState(Settings settings) :
-        settings_(std::make_shared<const Settings>(std::move(settings)))
-    {}
+        settings_(nullptr)
+    {
+        settings.Normalize();
+        settings_.store(
+            std::make_shared<const Settings>(std::move(settings)),
+            std::memory_order_release);
+    }
 
     std::shared_ptr<const Settings> RuntimeSettingsState::Snapshot() const noexcept
     {
@@ -13,6 +18,10 @@ namespace whereabouts
 
     void RuntimeSettingsState::Publish(const Settings& settings)
     {
-        settings_.store(std::make_shared<const Settings>(settings), std::memory_order_release);
+        auto normalized = settings;
+        normalized.Normalize();
+        settings_.store(
+            std::make_shared<const Settings>(std::move(normalized)),
+            std::memory_order_release);
     }
 }

@@ -201,6 +201,30 @@ namespace whereabouts
             return false;
         }
 
+        [[nodiscard]] bool MatchesAnyPlugin(
+            std::span<const std::string> selected,
+            std::span<const std::string> candidates)
+        {
+            return selected.empty() || std::ranges::any_of(selected, [&](const auto& wanted) {
+                return std::ranges::any_of(candidates, [&](const auto& candidate) {
+                    return SearchTextEqualsNoexcept(wanted, candidate);
+                });
+            });
+        }
+
+        [[nodiscard]] bool MatchesProjectedFacet(
+            const NpcSnapshot& npc,
+            std::optional<RecordFilterSelection> selected,
+            bool unknownOnly,
+            RecordFacetCategory category)
+        {
+            if (!npc.recordProjection) return unknownOnly || !selected;
+            const bool known = IsRecordFacetKnown(*npc.recordProjection, category);
+            if (unknownOnly) return !known;
+            return !selected || (known && MatchesRecordFacet(
+                *npc.recordProjection, category, selected->runtimeFormID));
+        }
+
         [[nodiscard]] bool MatchesFilters(
             const NpcSnapshot& npc,
             const SearchQuery& query,
@@ -309,6 +333,45 @@ namespace whereabouts
                     return false;
                 }
             }
+            const auto* projected = npc.recordProjection.get();
+            const auto* provenance = projected ? &projected->provenance : nullptr;
+            if (!filters.touchingPlugins.empty() &&
+                (!provenance || !provenance->known || !MatchesAnyPlugin(
+                    filters.touchingPlugins, provenance->touchingPlugins))) return false;
+            if (!filters.originalPlugins.empty()) {
+                const std::array candidates{provenance ? provenance->originalPlugin : std::string{}};
+                if (!provenance || !provenance->known ||
+                    !MatchesAnyPlugin(filters.originalPlugins, candidates)) return false;
+            }
+            if (!filters.winningPlugins.empty()) {
+                const std::array candidates{provenance ? provenance->winningPlugin : std::string{}};
+                if (!provenance || !provenance->known ||
+                    !MatchesAnyPlugin(filters.winningPlugins, candidates)) return false;
+            }
+            const bool provenanceKnown = provenance && provenance->known;
+            const auto pluginRecordCount = provenanceKnown ? provenance->PluginRecordCount() : 0;
+            if (!MatchesKnownBoolean(
+                    provenanceKnown && provenance->HasMultiplePluginRecords(),
+                    provenanceKnown,
+                    filters.multiplePluginRecords)) return false;
+            if (filters.minimumPluginRecordCount &&
+                (!provenanceKnown || pluginRecordCount < *filters.minimumPluginRecordCount)) return false;
+            if (filters.maximumPluginRecordCount &&
+                (!provenanceKnown || pluginRecordCount > *filters.maximumPluginRecordCount)) return false;
+            if (!MatchesProjectedFacet(
+                    npc, filters.npcClass, filters.unknownClassOnly,
+                    RecordFacetCategory::NpcClass)) return false;
+            if (!MatchesProjectedFacet(
+                    npc, filters.voiceType, filters.unknownVoiceTypeOnly,
+                    RecordFacetCategory::VoiceType)) return false;
+            if (!MatchesProjectedFacet(
+                    npc, filters.combatStyle, filters.unknownCombatStyleOnly,
+                    RecordFacetCategory::CombatStyle)) return false;
+            const bool scalingKnown = projected && projected->levelScaling.known;
+            if (!MatchesKnownBoolean(
+                    scalingKnown && projected->levelScaling.playerLevelMult,
+                    scalingKnown,
+                    filters.levelScaled)) return false;
             if (filters.favoritesOnly && !IsFavorite(npc, query)) {
                 return false;
             }

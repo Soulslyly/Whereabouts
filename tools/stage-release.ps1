@@ -2,7 +2,8 @@
 param(
     [string]$Version,
     [switch]$CreateArchives,
-    [string]$RuntimeDllPath
+    [string]$RuntimeDllPath,
+    [string]$VrRuntimeDllPath
 )
 
 $ErrorActionPreference = 'Stop'
@@ -18,7 +19,7 @@ elseif ($Version -ne $canonicalVersion) {
 
 $stagingRoot = Join-Path $snapshotRoot 'staging'
 $runtimeStage = Join-Path $stagingRoot 'runtime'
-$translationStage = Join-Path $stagingRoot 'translations'
+$vrStage = Join-Path $stagingRoot 'vr'
 $releaseRoot = Join-Path $snapshotRoot 'release'
 
 function Reset-SafeStage([string]$Path) {
@@ -90,44 +91,49 @@ $runtimeDllSource = if ([string]::IsNullOrWhiteSpace($RuntimeDllPath)) {
 else {
     [System.IO.Path]::GetFullPath($RuntimeDllPath)
 }
-$runtimeFiles = [ordered]@{
-    'plugin/Whereabouts.esp' = 'Whereabouts.esp'
-    $runtimeDllSource = 'SKSE/Plugins/Whereabouts.dll'
-    'config/Whereabouts.ini' = 'SKSE/Plugins/Whereabouts.ini'
-    'papyrus/Compiled/WhereaboutsAPI.pex' = 'Scripts/WhereaboutsAPI.pex'
-    'papyrus/Compiled/WhereaboutsQuest.pex' = 'Scripts/WhereaboutsQuest.pex'
-    'papyrus/Compiled/WhereaboutsTrackedAlias.pex' = 'Scripts/WhereaboutsTrackedAlias.pex'
-    'papyrus/Compiled/WhereaboutsNative.pex' = 'Scripts/WhereaboutsNative.pex'
-    'external/CommonLibSSE-NG/COPYING' = 'LICENSES/CommonLibSSE-NG-GPL-3.0.txt'
-    'external/CommonLibSSE-NG/EXCEPTIONS.md' = 'LICENSES/CommonLibSSE-NG-EXCEPTIONS.md'
-    'LICENSES/SKSE-Menu-Framework-API.txt' = 'LICENSES/SKSE-Menu-Framework-API.txt'
-    'LICENSES/Whereabouts-Permissions.txt' = 'LICENSES/Whereabouts-Permissions.txt'
-    'LICENSES/Third-Party-Notices.txt' = 'LICENSES/Third-Party-Notices.txt'
-}
 $languages = @('ENGLISH', 'FRENCH', 'ITALIAN', 'GERMAN', 'SPANISH', 'POLISH', 'CHINESE', 'RUSSIAN', 'JAPANESE')
-foreach ($language in $languages) {
-    $relative = "Interface/Translations/Whereabouts_$language.txt"
-    $runtimeFiles[$relative] = $relative
+
+function Write-RuntimeStage([string]$DestinationRoot, [string]$DllSource) {
+    $runtimeFiles = [ordered]@{
+        'plugin/Whereabouts.esp' = 'Whereabouts.esp'
+        $DllSource = 'SKSE/Plugins/Whereabouts.dll'
+        'config/Whereabouts.ini' = 'SKSE/Plugins/Whereabouts.ini'
+        'papyrus/Compiled/WhereaboutsAPI.pex' = 'Scripts/WhereaboutsAPI.pex'
+        'papyrus/Compiled/WhereaboutsQuest.pex' = 'Scripts/WhereaboutsQuest.pex'
+        'papyrus/Compiled/WhereaboutsTrackedAlias.pex' = 'Scripts/WhereaboutsTrackedAlias.pex'
+        'papyrus/Compiled/WhereaboutsNative.pex' = 'Scripts/WhereaboutsNative.pex'
+        'external/CommonLibSSE-NG/COPYING' = 'LICENSES/CommonLibSSE-NG-GPL-3.0.txt'
+        'external/CommonLibSSE-NG/EXCEPTIONS.md' = 'LICENSES/CommonLibSSE-NG-EXCEPTIONS.md'
+        'LICENSES/SKSE-Menu-Framework-API.txt' = 'LICENSES/SKSE-Menu-Framework-API.txt'
+        'LICENSES/Whereabouts-Permissions.txt' = 'LICENSES/Whereabouts-Permissions.txt'
+        'LICENSES/Third-Party-Notices.txt' = 'LICENSES/Third-Party-Notices.txt'
+    }
+    foreach ($language in $languages) {
+        $relative = "Interface/Translations/Whereabouts_$language.txt"
+        $runtimeFiles[$relative] = $relative
+    }
+    Reset-SafeStage $DestinationRoot
+    foreach ($entry in $runtimeFiles.GetEnumerator()) {
+        Copy-ReleaseFile $entry.Key $DestinationRoot $entry.Value
+    }
 }
 
-Reset-SafeStage $runtimeStage
-foreach ($entry in $runtimeFiles.GetEnumerator()) {
-    Copy-ReleaseFile $entry.Key $runtimeStage $entry.Value
+Write-RuntimeStage $runtimeStage $runtimeDllSource
+$vrDllSource = if ([string]::IsNullOrWhiteSpace($VrRuntimeDllPath)) {
+    $null
 }
-
-Reset-SafeStage $translationStage
-foreach ($language in $languages | Where-Object { $_ -ne 'ENGLISH' }) {
-    Copy-ReleaseFile `
-        "translations/machine/Whereabouts_$language.txt" `
-        $translationStage `
-        "Interface/Translations/Whereabouts_$language.txt"
+else {
+    [System.IO.Path]::GetFullPath($VrRuntimeDllPath)
 }
+if ($vrDllSource) { Write-RuntimeStage $vrStage $vrDllSource }
 
 if ($CreateArchives) {
     New-Item -ItemType Directory -Path $releaseRoot -Force | Out-Null
     New-DeterministicZip $runtimeStage (Join-Path $releaseRoot "Whereabouts-$Version-Main.zip")
-    New-DeterministicZip $translationStage (Join-Path $releaseRoot "Whereabouts-$Version-Translations.zip")
+    if ($vrDllSource) {
+        New-DeterministicZip $vrStage (Join-Path $releaseRoot "Whereabouts-$Version-VR-Untested.zip")
+    }
 }
 
 Write-Output "RUNTIME_STAGE=$runtimeStage"
-Write-Output "TRANSLATION_STAGE=$translationStage"
+if ($vrDllSource) { Write-Output "VR_STAGE=$vrStage" }

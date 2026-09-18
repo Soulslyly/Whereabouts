@@ -171,6 +171,7 @@ namespace whereabouts
         Console,
         Crosshair,
         Search,
+        Inspector,
         Tracked,
         Favorite,
         Recent
@@ -182,6 +183,7 @@ namespace whereabouts
         case TargetSource::Console: return "Console";
         case TargetSource::Crosshair: return "Crosshair";
         case TargetSource::Search: return "Search";
+        case TargetSource::Inspector: return "NPC Inspector";
         case TargetSource::Tracked: return "Tracked NPCs";
         case TargetSource::Favorite: return "Favorites";
         case TargetSource::Recent: return "Recent";

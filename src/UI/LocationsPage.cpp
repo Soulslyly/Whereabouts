@@ -145,7 +145,8 @@ namespace whereabouts::ui
                         }
                         specs->SpecsDirty = false;
                     }
-                    const bool showSecondary = ShowsSecondaryResultMetadata(settings_.resultDensity);
+                    const bool showSecondary = ShowsSecondaryResultMetadata(
+                        settings_.DensityFor(UiDensityArea::Results));
                     const float rowHeight = ImGuiMCP::GetTextLineHeightWithSpacing() *
                         (showSecondary ? 2.0F : 1.0F);
                     for (const auto& location : locationResults_) {

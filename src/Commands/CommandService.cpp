@@ -3,7 +3,7 @@
 #include "Commands/CommandService.h"
 #include "Core/FormIdentityAdapter.h"
 #include "Lifecycle/CallbackGuard.h"
-#include "Persistence/Serialization.h"
+#include "Persistence/FavoriteService.h"
 #include "Search/RuntimeIndex.h"
 #include "SKSEMenuFramework.h"
 #include "Tracking/TrackingService.h"
@@ -224,13 +224,13 @@ namespace whereabouts
     CommandService::CommandService(
         RuntimeIndex& index,
         TrackingService& tracking,
-        SavedNpcStore& savedNpcs,
+        FavoriteService& favorites,
         OperationQueue& operationQueue,
         UiCompletionMailbox& completions,
         const RuntimeSettingsState& settings) noexcept :
         index_(index),
         tracking_(tracking),
-        savedNpcs_(savedNpcs),
+        favorites_(favorites),
         operationQueue_(operationQueue),
         completions_(completions),
         settings_(settings)
@@ -262,6 +262,31 @@ namespace whereabouts
         movementGate_.Invalidate();
         enabledStateGate_.Invalidate();
         CancelPendingConsoleSelection();
+    }
+
+    void CommandService::BeginSession(OperationEpochToken token) noexcept
+    {
+        originalActorFlags_.BeginSession(token);
+    }
+
+    void CommandService::ClearTransientState() noexcept
+    {
+        originalActorFlags_.Clear();
+        if (customCommandScript_) customCommandScript_->ClearCommand();
+    }
+
+    bool CommandService::HasOriginalFlags(
+        std::uint32_t ownerRuntimeFormID,
+        OperationEpochToken token) const noexcept
+    {
+        return originalActorFlags_.Original(ownerRuntimeFormID, token).has_value();
+    }
+
+    std::optional<ActorFlagPair> CommandService::OriginalFlags(
+        std::uint32_t ownerRuntimeFormID,
+        OperationEpochToken token) const noexcept
+    {
+        return originalActorFlags_.Original(ownerRuntimeFormID, token);
     }
 
     void CommandService::CancelPendingConsoleSelection() noexcept
@@ -337,9 +362,95 @@ namespace whereabouts
         }
         case CommandKind::SelectConsole: return SelectInConsole(*actor, token);
         case CommandKind::Favorite: return ToggleFavorite(*actor, target);
+        case CommandKind::StopCombat:
+            if (!actor->Is3DLoaded()) return std::unexpected("NPC must be loaded to stop combat");
+            actor->StopCombat();
+            return {};
+        case CommandKind::MakeEssential:
+            return ChangeActorFlags(
+                *actor, SafetyFlagOperation::MakeEssential,
+                options.baseDataOwnerRuntimeFormID, token);
+        case CommandKind::MakeProtected:
+            return ChangeActorFlags(
+                *actor, SafetyFlagOperation::MakeProtected,
+                options.baseDataOwnerRuntimeFormID, token);
+        case CommandKind::RemoveFlags:
+            return ChangeActorFlags(
+                *actor, SafetyFlagOperation::RemoveFlags,
+                options.baseDataOwnerRuntimeFormID, token);
+        case CommandKind::RestoreOriginalFlags:
+            return ChangeActorFlags(
+                *actor, SafetyFlagOperation::RestoreOriginal,
+                options.baseDataOwnerRuntimeFormID, token);
         case CommandKind::Count: break;
         }
         return std::unexpected("Unknown command");
+    }
+
+    std::expected<void, std::string> CommandService::ExecuteCustomCommand(
+        const SelectedTarget& target,
+        std::string_view command,
+        OperationEpochToken token)
+    {
+        if (!token) return std::unexpected("The current game session is not ready");
+        auto actor = Resolve(target);
+        if (!actor) return std::unexpected("NPC is no longer available");
+        const auto validation = ValidateCustomCommand("Custom command", command);
+        if (!validation) return std::unexpected(validation.error());
+        if (!customCommandScript_) {
+            customCommandScript_ = RE::IFormFactory::Create<RE::Script>();
+        }
+        if (!customCommandScript_) {
+            return std::unexpected("Skyrim could not create the custom-command runner");
+        }
+        customCommandScript_->SetCommand(command);
+        customCommandScript_->CompileAndRun(actor.get());
+        return {};
+    }
+
+    std::expected<void, std::string> CommandService::ChangeActorFlags(
+        RE::Actor& actor,
+        SafetyFlagOperation operation,
+        std::uint32_t ownerRuntimeFormID,
+        OperationEpochToken token)
+    {
+        if (!token) return std::unexpected("The current game session is not ready");
+        auto* owner = ownerRuntimeFormID != 0 ?
+            RE::TESForm::LookupByID<RE::TESNPC>(ownerRuntimeFormID) : actor.GetActorBase();
+        if (!owner) return std::unexpected("The effective base NPC is unavailable");
+        ownerRuntimeFormID = owner->GetFormID();
+
+        const ActorFlagPair before{owner->IsEssential(), owner->IsProtected()};
+        ActorFlagPair desired;
+        if (operation == SafetyFlagOperation::RestoreOriginal) {
+            const auto original = originalActorFlags_.Original(ownerRuntimeFormID, token);
+            if (!original) return std::unexpected("No original flags were captured this session");
+            desired = *original;
+        } else {
+            desired = ApplySafetyFlagOperation(before, operation);
+        }
+        if (desired == before) return {};
+
+        const auto mutation = ApplyVerifiedActorFlagMutation(
+            before,
+            desired,
+            [owner](ActorFlagPair flags) {
+                owner->SetActorBaseFlag(
+                    RE::ACTOR_BASE_DATA::Flag::kEssential, flags.essential, true);
+                owner->SetActorBaseFlag(
+                    RE::ACTOR_BASE_DATA::Flag::kProtected, flags.protectedActor, true);
+            },
+            [owner] {
+                return ActorFlagPair{owner->IsEssential(), owner->IsProtected()};
+            });
+        if (!mutation) return std::unexpected(mutation.error());
+        if (operation != SafetyFlagOperation::RestoreOriginal) {
+            originalActorFlags_.RememberAfterSuccessfulChange(
+                ownerRuntimeFormID, before, token);
+        }
+        static_cast<void>(index_.SetExpectedActorFlagsForOwner(
+            ownerRuntimeFormID, desired.essential, desired.protectedActor));
+        return {};
     }
 
     RE::BSEventNotifyControl CommandService::ProcessEvent(
@@ -474,18 +585,9 @@ namespace whereabouts
             return std::unexpected("Dynamic NPCs cannot be saved as favorites");
         }
 
-        const auto favorites = savedNpcs_.Favorites();
-        const bool exists = std::ranges::any_of(favorites, [&](const auto& entry) {
-            return entry.identity == identity;
-        });
         const std::string name = actor.GetDisplayFullName() ? actor.GetDisplayFullName() : target.displayName;
-        if (exists) {
-            static_cast<void>(savedNpcs_.RemoveFavorite(identity));
-        } else {
-            if (!savedNpcs_.AddFavorite({identity, name})) {
-                return std::unexpected("Favorite could not be saved. The list is full or the NPC identity or name is invalid.");
-            }
-        }
+        const auto toggled = favorites_.Toggle({identity, name});
+        if (!toggled) return std::unexpected(toggled.error());
         return {};
     }
 

@@ -1,4 +1,5 @@
 #include "Persistence/Settings.h"
+#include "Commands/CommandActions.h"
 
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
@@ -9,6 +10,7 @@
 #include <cmath>
 #include <fstream>
 #include <optional>
+#include <sstream>
 #include <string_view>
 #include <system_error>
 
@@ -64,6 +66,74 @@ namespace whereabouts
             return value ? "true" : "false";
         }
 
+        std::string NormalizeActionID(std::string_view text)
+        {
+            auto value = Lower(Trim(text));
+            if (value.empty()) return std::string(kDisabledActionID);
+            if (!std::ranges::all_of(value, [](unsigned char character) {
+                    return std::isalnum(character) != 0 ||
+                        character == '.' || character == '_' || character == '-';
+                })) {
+                return std::string(kDisabledActionID);
+            }
+            return value;
+        }
+
+        bool HasControlCharacters(std::string_view text)
+        {
+            return std::ranges::any_of(text, [](unsigned char character) {
+                return std::iscntrl(character) != 0;
+            });
+        }
+
+        std::optional<std::size_t> CustomCommandIndex(std::string_view actionID)
+        {
+            constexpr std::string_view prefix = "custom.";
+            if (!actionID.starts_with(prefix)) return std::nullopt;
+            const auto number = ParseNumber<std::size_t>(actionID.substr(prefix.size()));
+            if (!number || *number == 0 || *number > kCustomCommandSlotCount) {
+                return std::nullopt;
+            }
+            return *number - 1;
+        }
+
+        std::vector<std::string> ParseActionList(std::string_view text)
+        {
+            std::vector<std::string> result;
+            std::size_t first = 0;
+            while (first <= text.size()) {
+                const auto comma = text.find(',', first);
+                const auto end = comma == std::string_view::npos ? text.size() : comma;
+                result.push_back(std::string(text.substr(first, end - first)));
+                if (comma == std::string_view::npos) break;
+                first = comma + 1;
+            }
+            return result;
+        }
+
+        std::string JoinActionList(const std::vector<std::string>& values)
+        {
+            std::ostringstream output;
+            for (std::size_t index = 0; index < values.size(); ++index) {
+                if (index != 0) output << ',';
+                output << values[index];
+            }
+            return output.str();
+        }
+
+        std::optional<std::size_t> CustomCommandSectionIndex(std::string_view section)
+        {
+            constexpr std::string_view prefix = "customcommand";
+            const auto lower = Lower(Trim(section));
+            if (!lower.starts_with(prefix)) return std::nullopt;
+            const auto number = ParseNumber<std::size_t>(
+                std::string_view(lower).substr(prefix.size()));
+            if (!number || *number == 0 || *number > kCustomCommandSlotCount) {
+                return std::nullopt;
+            }
+            return *number - 1;
+        }
+
         std::optional<ControllerKeyboardLayout> ParseControllerKeyboardLayout(std::string_view text)
         {
             const auto value = Lower(Trim(text));
@@ -115,6 +185,27 @@ namespace whereabouts
             return "Detailed";
         }
 
+        std::optional<DensityOverride> ParseDensityOverride(std::string_view text)
+        {
+            const auto value = Lower(Trim(text));
+            if (value == "useglobal") return DensityOverride::UseGlobal;
+            if (value == "detailed") return DensityOverride::Detailed;
+            if (value == "compact") return DensityOverride::Compact;
+            if (value == "supercompact") return DensityOverride::SuperCompact;
+            return std::nullopt;
+        }
+
+        const char* DensityOverrideText(DensityOverride value)
+        {
+            switch (value) {
+            case DensityOverride::UseGlobal: return "UseGlobal";
+            case DensityOverride::Detailed: return "Detailed";
+            case DensityOverride::Compact: return "Compact";
+            case DensityOverride::SuperCompact: return "SuperCompact";
+            }
+            return "UseGlobal";
+        }
+
         std::optional<TranslationLanguage> ParseTranslationLanguage(std::string_view text)
         {
             const auto value = Lower(Trim(text));
@@ -134,6 +225,7 @@ namespace whereabouts
         bool ApplySetting(Settings& settings, std::string_view section, std::string_view key, std::string_view value)
         {
             const auto path = Lower(section) + "." + Lower(key);
+            const auto keyLower = Lower(key);
             const auto boolean = [&]() { return ParseBool(value); };
             const auto integer = [&]() { return ParseNumber<std::uint32_t>(value); };
 
@@ -147,6 +239,7 @@ namespace whereabouts
             if (path == "general.regexdefault") return true;
             WHEREABOUTS_UINT("general.recentlimit", recentLimit)
             WHEREABOUTS_BOOL("general.debuglogging", debugLogging)
+            WHEREABOUTS_BOOL("general.sharefavoritesbetweensaves", shareFavoritesAcrossSaves)
 
             if (path == "targeting.teleportrange") {
                 const auto parsed = ParseNumber<float>(value);
@@ -163,6 +256,42 @@ namespace whereabouts
 
             WHEREABOUTS_BOOL("safety.confirmdisable", confirmDisable)
             WHEREABOUTS_BOOL("safety.confirmteleport", confirmTeleport)
+
+            WHEREABOUTS_BOOL("commands.showconfirmations", showCommandConfirmations)
+            WHEREABOUTS_UINT("commands.examplesversion", customCommandExamplesVersion)
+            if (path == "commands.rowbuttonaction") {
+                settings.rowButtonAction = std::string(value);
+                return true;
+            }
+            if (path == "commands.doubleclickaction") {
+                settings.doubleClickAction = std::string(value);
+                return true;
+            }
+            if (path == "commands.order") {
+                settings.commandOrder = ParseActionList(value);
+                return true;
+            }
+            if (path == "commands.hidden") {
+                settings.hiddenCommands = ParseActionList(value);
+                return true;
+            }
+            if (const auto slot = CustomCommandSectionIndex(section)) {
+                auto& custom = settings.customCommands[*slot];
+                if (keyLower == "enabled") {
+                    const auto parsed = boolean();
+                    if (!parsed) return false;
+                    custom.enabled = *parsed;
+                    return true;
+                }
+                if (keyLower == "name") {
+                    custom.name = std::string(value);
+                    return true;
+                }
+                if (keyLower == "command") {
+                    custom.command = std::string(value);
+                    return true;
+                }
+            }
 
             WHEREABOUTS_BOOL("interface.keepopenafterinlinecommand", keepOpenAfterInlineCommand)
             WHEREABOUTS_BOOL("interface.rememberfilters", rememberFilters)
@@ -184,6 +313,16 @@ namespace whereabouts
                 settings.resultDensity = *parsed;
                 return true;
             }
+#define WHEREABOUTS_DENSITY_OVERRIDE(settingPath, field) \
+            if (path == settingPath) { const auto parsed = ParseDensityOverride(value); if (!parsed) return false; settings.field = *parsed; return true; }
+            WHEREABOUTS_DENSITY_OVERRIDE("interface.searchdensity", searchDensity)
+            WHEREABOUTS_DENSITY_OVERRIDE("interface.filterdensity", filterDensity)
+            WHEREABOUTS_DENSITY_OVERRIDE("interface.advancedfilterdensity", advancedFilterDensity)
+            WHEREABOUTS_DENSITY_OVERRIDE("interface.resultsdensity", resultsDensity)
+            WHEREABOUTS_DENSITY_OVERRIDE("interface.selectednpcdensity", selectedNpcDensity)
+            WHEREABOUTS_DENSITY_OVERRIDE("interface.savedlistsdensity", savedListsDensity)
+            WHEREABOUTS_DENSITY_OVERRIDE("interface.inspectordensity", inspectorDensity)
+#undef WHEREABOUTS_DENSITY_OVERRIDE
             if (path == "interface.language") {
                 const auto parsed = ParseTranslationLanguage(value);
                 if (!parsed) return false;
@@ -207,6 +346,13 @@ namespace whereabouts
             if (path == "interface.controllerkeyboardlayout" ||
                 path == "interface.distanceunit" ||
                 path == "interface.resultdensity" ||
+                path == "interface.searchdensity" ||
+                path == "interface.filterdensity" ||
+                path == "interface.advancedfilterdensity" ||
+                path == "interface.resultsdensity" ||
+                path == "interface.selectednpcdensity" ||
+                path == "interface.savedlistsdensity" ||
+                path == "interface.inspectordensity" ||
                 path == "interface.language" ||
                 path == "interface.copyidformat" ||
                 path == "general.enabled") {
@@ -241,6 +387,27 @@ namespace whereabouts
         return "FollowSkyrim";
     }
 
+    ResultDensity Settings::DensityFor(UiDensityArea area) const noexcept
+    {
+        DensityOverride overrideValue = DensityOverride::UseGlobal;
+        switch (area) {
+        case UiDensityArea::Search: overrideValue = searchDensity; break;
+        case UiDensityArea::Filters: overrideValue = filterDensity; break;
+        case UiDensityArea::AdvancedFilters: overrideValue = advancedFilterDensity; break;
+        case UiDensityArea::Results: overrideValue = resultsDensity; break;
+        case UiDensityArea::SelectedNpc: overrideValue = selectedNpcDensity; break;
+        case UiDensityArea::SavedLists: overrideValue = savedListsDensity; break;
+        case UiDensityArea::Inspector: overrideValue = inspectorDensity; break;
+        }
+        switch (overrideValue) {
+        case DensityOverride::Detailed: return ResultDensity::Detailed;
+        case DensityOverride::Compact: return ResultDensity::Compact;
+        case DensityOverride::SuperCompact: return ResultDensity::SuperCompact;
+        case DensityOverride::UseGlobal: return resultDensity;
+        }
+        return resultDensity;
+    }
+
     void Settings::Normalize() noexcept
     {
         teleportRange = std::isfinite(teleportRange) ?
@@ -262,10 +429,112 @@ namespace whereabouts
             resultDensity != ResultDensity::SuperCompact) {
             resultDensity = ResultDensity::Detailed;
         }
+        const auto normalizeDensityOverride = [](DensityOverride& value) {
+            if (value < DensityOverride::UseGlobal || value > DensityOverride::SuperCompact) {
+                value = DensityOverride::UseGlobal;
+            }
+        };
+        normalizeDensityOverride(searchDensity);
+        normalizeDensityOverride(filterDensity);
+        normalizeDensityOverride(advancedFilterDensity);
+        normalizeDensityOverride(resultsDensity);
+        normalizeDensityOverride(selectedNpcDensity);
+        normalizeDensityOverride(savedListsDensity);
+        normalizeDensityOverride(inspectorDensity);
         if (translationLanguage < TranslationLanguage::FollowSkyrim ||
             translationLanguage > TranslationLanguage::Spanish) {
             translationLanguage = TranslationLanguage::FollowSkyrim;
         }
+
+        for (auto& custom : customCommands) {
+            custom.name = Trim(custom.name);
+            custom.command = Trim(custom.command);
+            if (HasControlCharacters(custom.name)) custom.name.clear();
+            if (HasControlCharacters(custom.command)) custom.command.clear();
+        }
+
+        if (customCommandExamplesVersion < 1) {
+            constexpr std::array examples{
+                std::pair{"Reset AI", "resetai"},
+                std::pair{"Unequip Everything", "unequipall"},
+                std::pair{"Restore Health", "restoreav health 1000"},
+                std::pair{"Kill", "kill"}};
+            for (std::size_t index = 0; index < examples.size(); ++index) {
+                auto& slot = customCommands[index];
+                if (slot.name.empty() && slot.command.empty()) {
+                    slot.enabled = false;
+                    slot.name = examples[index].first;
+                    slot.command = examples[index].second;
+                }
+            }
+            customCommandExamplesVersion = 1;
+        }
+
+        for (auto& custom : customCommands) {
+            custom.enabled = custom.enabled &&
+                ValidateCustomCommand(custom.name, custom.command).has_value();
+        }
+
+        const auto actionAvailable = [&](std::string_view actionID) {
+            const auto slot = CustomCommandIndex(actionID);
+            if (actionID.starts_with("custom.")) {
+                return slot && customCommands[*slot].enabled;
+            }
+            return actionID == kDisabledActionID ||
+                actionID == kCopyNpcReportActionID ||
+                CommandForActionID(actionID).has_value();
+        };
+        const auto normalizeAssignment = [&](std::string& actionID) {
+            actionID = NormalizeActionID(actionID);
+            if (!actionAvailable(actionID)) {
+                actionID = std::string(kDisabledActionID);
+            }
+        };
+        normalizeAssignment(rowButtonAction);
+        normalizeAssignment(doubleClickAction);
+
+        const auto layoutActionAvailable = [&](std::string_view actionID) {
+            if (actionID == kActorFlagsGroupActionID || actionID == kCopyIdentityActionID) {
+                return true;
+            }
+            return actionAvailable(actionID) && !IsActorFlagActionID(actionID);
+        };
+        const auto normalizeLayoutList = [&](std::vector<std::string>& values) {
+            std::vector<std::string> normalized;
+            normalized.reserve(values.size());
+            for (const auto& raw : values) {
+                auto actionID = NormalizeActionID(raw);
+                if (IsActorFlagActionID(actionID)) {
+                    actionID = std::string(kActorFlagsGroupActionID);
+                }
+                if (actionID == kDisabledActionID || !layoutActionAvailable(actionID) ||
+                    std::ranges::find(normalized, actionID) != normalized.end()) {
+                    continue;
+                }
+                normalized.push_back(std::move(actionID));
+            }
+            values = std::move(normalized);
+        };
+        normalizeLayoutList(commandOrder);
+
+        const auto containsHidden = [&](std::string_view wanted) {
+            return std::ranges::any_of(hiddenCommands, [&](const auto& raw) {
+                return NormalizeActionID(raw) == wanted;
+            });
+        };
+        const bool allLegacyActorFlagsHidden = std::ranges::all_of(
+            kBuiltInCommandActions,
+            [&](const auto& action) {
+                return !IsActorFlagActionID(action.id) || containsHidden(action.id);
+            });
+        const bool hideActorFlags =
+            containsHidden(kActorFlagsGroupActionID) || allLegacyActorFlagsHidden;
+        std::erase_if(hiddenCommands, [](const auto& raw) {
+            const auto actionID = NormalizeActionID(raw);
+            return actionID == kActorFlagsGroupActionID || IsActorFlagActionID(actionID);
+        });
+        normalizeLayoutList(hiddenCommands);
+        if (hideActorFlags) hiddenCommands.emplace_back(kActorFlagsGroupActionID);
     }
 
     SettingsRepository::SettingsRepository(std::filesystem::path path) :
@@ -332,6 +601,7 @@ namespace whereabouts
         output << "[General]\n"
                << "LiveSearch=" << BoolText(settings.liveSearch) << '\n'
                << "RecentLimit=" << settings.recentLimit << '\n'
+               << "ShareFavoritesBetweenSaves=" << BoolText(settings.shareFavoritesAcrossSaves) << '\n'
                << "DebugLogging=" << BoolText(settings.debugLogging) << "\n\n"
                << "[Targeting]\n"
                << "TeleportRange=" << settings.teleportRange << '\n'
@@ -342,6 +612,13 @@ namespace whereabouts
                << "[Safety]\n"
                << "ConfirmDisable=" << BoolText(settings.confirmDisable) << '\n'
                << "ConfirmTeleport=" << BoolText(settings.confirmTeleport) << "\n\n"
+               << "[Commands]\n"
+               << "ShowConfirmations=" << BoolText(settings.showCommandConfirmations) << '\n'
+               << "ExamplesVersion=" << settings.customCommandExamplesVersion << '\n'
+               << "RowButtonAction=" << settings.rowButtonAction << '\n'
+               << "DoubleClickAction=" << settings.doubleClickAction << '\n'
+               << "Order=" << JoinActionList(settings.commandOrder) << '\n'
+               << "Hidden=" << JoinActionList(settings.hiddenCommands) << "\n\n"
                << "[Interface]\n"
                << "KeepOpenAfterInlineCommand=" << BoolText(settings.keepOpenAfterInlineCommand) << '\n'
                << "RememberFilters=" << BoolText(settings.rememberFilters) << '\n'
@@ -349,12 +626,26 @@ namespace whereabouts
                     ControllerKeyboardLayoutText(settings.controllerKeyboardLayout) << '\n'
                << "DistanceUnit=" << DistanceUnitText(settings.distanceUnit) << '\n'
                << "ResultDensity=" << ResultDensityText(settings.resultDensity) << '\n'
+               << "SearchDensity=" << DensityOverrideText(settings.searchDensity) << '\n'
+               << "FilterDensity=" << DensityOverrideText(settings.filterDensity) << '\n'
+               << "AdvancedFilterDensity=" << DensityOverrideText(settings.advancedFilterDensity) << '\n'
+               << "ResultsDensity=" << DensityOverrideText(settings.resultsDensity) << '\n'
+               << "SelectedNpcDensity=" << DensityOverrideText(settings.selectedNpcDensity) << '\n'
+               << "SavedListsDensity=" << DensityOverrideText(settings.savedListsDensity) << '\n'
+               << "InspectorDensity=" << DensityOverrideText(settings.inspectorDensity) << '\n'
                << "Language=" << TranslationLanguageSettingText(settings.translationLanguage) << '\n'
                << "LiveResultLimit=" << settings.liveResultLimit << '\n'
                << "FullResultLimit=" << settings.fullResultLimit << '\n'
                << "ShowAllResults=" << BoolText(settings.showAllResults) << '\n'
                << "EnableAdvancedFilters=" << BoolText(settings.enableAdvancedFilters) << '\n'
                << "ShowActiveFilterNames=" << BoolText(settings.showActiveFilterNames) << '\n';
+        for (std::size_t index = 0; index < settings.customCommands.size(); ++index) {
+            const auto& custom = settings.customCommands[index];
+            output << "\n[CustomCommand" << (index + 1) << "]\n"
+                   << "Enabled=" << BoolText(custom.enabled) << '\n'
+                   << "Name=" << custom.name << '\n'
+                   << "Command=" << custom.command << '\n';
+        }
         output.flush();
         if (!output) {
             output.close();

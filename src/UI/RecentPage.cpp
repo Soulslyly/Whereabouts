@@ -47,7 +47,7 @@ namespace whereabouts::ui
         }
         if (selected_) {
             ImGuiMCP::Separator();
-            RenderDetails(true);
+            RenderDetails(settings_.DensityFor(UiDensityArea::SelectedNpc));
         }
         }
         ImGuiMCP::EndChild();

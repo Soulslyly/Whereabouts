@@ -193,7 +193,7 @@ $Whereabouts_CleanupHelp	Clears markers and Whereabouts save lists. Then save, q
 $Whereabouts_RestorePrompt	Restore Whereabouts defaults?		
 $Whereabouts_RestoreBody	Restore every global Whereabouts setting to its default value?		
 $Whereabouts_ModTitle	Whereabouts - Search, Locate, and Track NPCs		
-$Whereabouts_Requirements	Requires SKSE, Address Library for SKSE Plugins, and SKSE Menu Framework.		
+$Whereabouts_Requirements	Requires the matching SKSE and Address Library, Skyrim VR ESL Support on VR, and either SKSE Menu Framework or ApocryphaRealm Menu Framework.		
 $Whereabouts_ReferenceCredit	Thanks to k0mp1ex for Where Are You, an awesome mod and the inspiration for Whereabouts.		
 $Whereabouts_FrameworkCredit	SKSE Menu Framework API by QTR-Modding, used under LGPL-2.1.		
 $Whereabouts_ClearFavoritesPrompt	Clear all favorites?		
@@ -431,3 +431,97 @@ $Whereabouts_NoMatchingRecords	No matching records.
 $Whereabouts_RecordMatchesNarrow	{} matches; type to narrow.		{}
 $Whereabouts_FactionFilterHelp	Filter by an NPC's base faction.		
 $Whereabouts_BaseKeywordFilterHelp	Filter by a keyword on the base NPC.		
+$Whereabouts_Class	Class		
+$Whereabouts_VoiceType	Voice type		
+$Whereabouts_CombatStyle	Combat style		
+$Whereabouts_LevelScaling	Level scaling		
+$Whereabouts_OriginalPlugin	Original plugin		
+$Whereabouts_WinningPlugin	Winning plugin		
+$Whereabouts_PluginRecords	Plugin records		
+$Whereabouts_AllTouchingPlugins	All touching plugins		
+$Whereabouts_TouchesNpcRecord	Touches NPC record		
+$Whereabouts_MultiplePluginRecords	Multiple plugin records		
+$Whereabouts_MinPluginRecords	Min plugin records		
+$Whereabouts_MaxPluginRecords	Max plugin records		
+$Whereabouts_LevelScaled	Level scaled		
+$Whereabouts_FindClass	Find class		
+$Whereabouts_FindVoiceType	Find voice type		
+$Whereabouts_FindCombatStyle	Find combat style		
+$Whereabouts_IndexedReferencesSharingBase	Indexed references sharing this base		
+$Whereabouts_PcLevelScaling	PC level x {:.3f} (min {}, max {})		{:.3f} {} {}
+$Whereabouts_FixedLevel	Fixed level {}		{}
+$Whereabouts_EffectiveBaseDataOwner	Effective Base Data owner		
+$Whereabouts_IndexedReferencesSharingBaseDataOwner	Indexed references sharing this Base Data owner		
+$Whereabouts_StopCombat	Stop Combat		
+$Whereabouts_EssentialProtected	Essential / Protected		
+$Whereabouts_MakeEssential	Make Essential		
+$Whereabouts_MakeProtected	Make Protected		
+$Whereabouts_RemoveFlags	Remove Flags		
+$Whereabouts_RestoreOriginalFlags	Restore Original Flags		
+$Whereabouts_CopyNpcReport	Copy NPC Report		
+$Whereabouts_QuickAction	Quick Action		
+$Whereabouts_Qa	QA		
+$Whereabouts_ShowCommandConfirmations	Show command confirmations		
+$Whereabouts_CommandConfirmationsHelp	When off, built-in NPC commands, built-in quick actions, tracking, and location travel run without confirmation prompts. Custom commands always run immediately after validation.		
+$Whereabouts_RowButtonAction	Row button action		
+$Whereabouts_DoubleClickAction	Double-click action		
+$Whereabouts_RowButtonActionHelp	Action used by the small NPC-row button.		
+$Whereabouts_DoubleClickActionHelp	Action used when an NPC result row is double-clicked.		
+$Whereabouts_CustomCommands	Custom commands		
+$Whereabouts_CustomCommandNumber	Custom Command {}		{}
+$Whereabouts_CustomCommandHelp	Use {refid} and {baseid} for resolved eight-digit FormIDs. Commands are dispatched to exactly one selected NPC.		{refid} {baseid}
+$Whereabouts_ActorFlagsHelp	Changes independent Essential and Protected flags on the effective base NPC.		
+$Whereabouts_NoOriginalFlags	No original flags were captured this session.		
+$Whereabouts_CustomCommandPreview	This command is dispatched to the selected NPC:		
+$Whereabouts_RunsAction	Runs: {}		{}
+$Whereabouts_ActionUnavailable	{} - {}		{} {}
+$Whereabouts_CopiedNpcReport	Copied NPC report.		
+$Whereabouts_CustomCommandQueued	Custom command queued.		
+$Whereabouts_CustomCommandDispatched	{} dispatched.		{}
+$Whereabouts_NpcInspector	NPC Inspector		
+$Whereabouts_InspectorSearchHelp	Search by NPC name, plugin, EditorID, FormID, identity, or location.		
+$Whereabouts_NoMatchingNpcs	No matching NPCs.		
+$Whereabouts_TouchCount	Touch count		
+$Whereabouts_OriginalFlagsThisSession	Original flags this session		
+$Whereabouts_NotCaptured	Not captured		
+$Whereabouts_NoFlags	No flags		
+$Whereabouts_CommandLayout	Command layout		
+$Whereabouts_CommandLayoutHelp	Show, hide, and reorder command actions. Hidden actions remain available for Quick Action and double-click assignments.		
+$Whereabouts_Visible	Visible		
+$Whereabouts_MoveUp	Move up		
+$Whereabouts_MoveDown	Move down		
+$Whereabouts_ContentShort	Content		
+$Whereabouts_PotentialShort	Potential		
+$Whereabouts_FavoriteShort	Fav		
+$Whereabouts_SameShort	Same		
+$Whereabouts_GenericNpcsShort	Generic NPCs		
+$Whereabouts_GenericShort	Generic		
+$Whereabouts_TouchesRecordShort	Touches record		
+$Whereabouts_TouchesShort	Touches		
+$Whereabouts_OriginalShort	Original		
+$Whereabouts_WinningShort	Winning		
+$Whereabouts_WinnerShort	Winner		
+$Whereabouts_KeywordShort	Keyword		
+$Whereabouts_VoiceShort	Voice		
+$Whereabouts_CombatShort	Combat		
+$Whereabouts_ConflictedShort	Conflicted		
+$Whereabouts_ConflictShort	Conflict		
+$Whereabouts_ScaledShort	Scaled		
+$Whereabouts_MinRecordsShort	Min records		
+$Whereabouts_MinShort	Min		
+$Whereabouts_MaxRecordsShort	Max records		
+$Whereabouts_MaxShort	Max		
+$Whereabouts_SearchContentHelp	Choose whether Search returns NPCs, locations, or both.		
+$Whereabouts_ShareFavoritesAcrossSaves	Share Favorites between saves		
+$Whereabouts_ShareFavoritesHelp	When enabled, stable Favorites are shared across saves and playthroughs for this Skyrim installation.		
+$Whereabouts_ShareFavoritesMerged	Favorites from this save and the shared list were merged.		
+$Whereabouts_ShareFavoritesDisabled	Favorites sharing is off. The shared list was preserved.		
+$Whereabouts_ShareFavoritesChangeFailed	Favorites sharing could not be changed: {}		{}
+$Whereabouts_ClearFavoritesPreservedShared	Favorites were cleared from this save. Sharing was turned off and the shared list was preserved.		
+$Whereabouts_GlobalUiDensity	Global UI density		
+$Whereabouts_DensityOverrides	Density overrides		
+$Whereabouts_UseGlobal	Use Global		
+$Whereabouts_DensityOverridesHelp	Use Global follows the top-level density. Overrides apply immediately.		
+$Whereabouts_Results	Results		
+$Whereabouts_SelectedNpcAndCommands	Selected NPC and commands		
+$Whereabouts_SavedListsDensityArea	Recent, Favorites, and Tracked		

@@ -2,7 +2,7 @@
 
 ## Candidate under test
 
-Use the final-hash 1.1.1 Main candidate for runtime passes and compare its SHA-256 with the release validator. Install 1.1.1 as a separate test mod in a disposable profile and save. Retained runtime pairs are Skyrim 1.5.97/SKSE 2.0.20 with BEES, Skyrim 1.6.1170/SKSE 2.2.6, and Skyrim 1.7.104/SKSE 2.3.1. Every profile needs the matching Address Library, an enabled `Whereabouts.esp`, and exactly one supported menu framework: SMF 3.14.x+ within major 3 or AMF 1.8.4+ within major 1. Dependency boot evidence is not Whereabouts runtime acceptance.
+Use the final-hash 2.0.0 Main candidate for runtime passes and compare its SHA-256 with the release validator. Install 2.0.0 as a separate test mod in a disposable profile and save. Retained flat-runtime pairs are Skyrim 1.5.97/SKSE 2.0.20 with BEES, Skyrim 1.6.1170/SKSE 2.2.6, and Skyrim 1.7.104/SKSE 2.3.1. Every profile needs the matching Address Library, an enabled `Whereabouts.esp`, and exactly one supported menu framework: SMF 3.14.x+ within major 3 or AMF 1.8.4+ within major 1. Dependency boot evidence is not Whereabouts runtime acceptance. The VR target remains experimental and untested in game.
 
 Before runtime installation, validate all four Main-archive PEX files with `tools/normalize-pex-metadata.ps1 -ValidateOnly`. This proves only that compiler timestamp, user, and computer header fields are canonical; it does not prove script behavior in Skyrim.
 
@@ -35,9 +35,9 @@ Run these cases on a disposable test profile and save:
 
 ## Localization loading
 
-The Main archive contains 392 clean English fallback rows under every supported language filename. Each row has an unchanged `$Whereabouts_*` key, exactly one required tab, and the editable English value on the right.
+The Main archive contains 491 catalog rows under every supported language filename. Each row has an unchanged `$Whereabouts_*` key, exactly one required tab, and the translated or English-fallback value on the right.
 
-With `Follow Skyrim (default)`, boot from a fully closed process and confirm `Whereabouts.log` reports Skyrim's configured language and 392 catalog entries. Choose an explicit language in Whereabouts Settings, quit Skyrim completely, restart, and confirm Whereabouts uses that file without changing Skyrim's own language. The Settings page must show the loaded language. Changing the choice during the same process must keep the current UI language consistent and show `Restart Skyrim to apply this language.`
+With `Follow Skyrim (default)`, boot from a fully closed process and confirm `Whereabouts.log` reports Skyrim's configured language and 491 catalog entries. Choose an explicit language in Whereabouts Settings, quit Skyrim completely, restart, and confirm Whereabouts uses that file without changing Skyrim's own language. The Settings page must show the loaded language. Changing the choice during the same process must keep the current UI language consistent and show `Restart Skyrim to apply this language.`
 
 ## Responsive filter layout and sort direction
 

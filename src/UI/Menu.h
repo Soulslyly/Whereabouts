@@ -8,10 +8,12 @@
 #include "Core/TrackingCompletion.h"
 #include "Commands/CommandPolicy.h"
 #include "Commands/CommandService.h"
+#include "Commands/CommandActions.h"
 #include "Lifecycle/OperationEpoch.h"
 #include "Lifecycle/OperationQueue.h"
 #include "Lifecycle/UiCompletionMailbox.h"
 #include "Persistence/Serialization.h"
+#include "Persistence/FavoriteService.h"
 #include "Persistence/Settings.h"
 #include "Persistence/RuntimeSettingsState.h"
 #include "Targets/TargetSelection.h"
@@ -53,6 +55,7 @@ namespace whereabouts
                 CommandPolicy& commandPolicy,
                 CommandService& commandService,
                 SavedNpcStore& savedNpcs,
+                FavoriteService& favorites,
                 Settings& settings,
                 RuntimeSettingsState& runtimeSettings,
                 const SettingsRepository& settingsRepository) noexcept;
@@ -65,6 +68,7 @@ namespace whereabouts
             void RenderTracked();
             void RenderFavorites();
             void RenderRecent();
+            void RenderInspector();
             void RenderSettings();
             void RenderControllerKeyboard();
             void OnFrameworkOpen();
@@ -78,10 +82,12 @@ namespace whereabouts
             static void __stdcall TrackedCallback();
             static void __stdcall FavoritesCallback();
             static void __stdcall RecentCallback();
+            static void __stdcall InspectorCallback();
             static void __stdcall SettingsCallback();
 
             void RunSearch(SearchRun run, bool reseedRandom = false);
             void RunLocationSearch(SearchRun run, bool mainSearch = false);
+            void RunInspectorSearch();
             [[nodiscard]] SearchFilters BuildSearchFilters() const;
             void RefreshForIndexGeneration();
             void SyncSelectedTarget();
@@ -94,9 +100,10 @@ namespace whereabouts
             void ClearSelection();
             void SelectSnapshot(const NpcSnapshot& snapshot, TargetSource source);
             void SelectLocation(const LocationSnapshot& snapshot);
-            void RenderDetails(bool scrollWithPage = false);
+            void RenderDetails(ResultDensity density);
             void RenderLocationDetails();
             void RenderSearchLocationResults();
+            void RenderSearchFilters(bool& searchOptionsChanged, bool& catalogModeChanged);
             void RenderRootModals();
             void RenderCommandConfirmation();
             void RenderTrackingWarning();
@@ -127,6 +134,20 @@ namespace whereabouts
                 bool selected = false,
                 bool favorite = false);
             void RequestCommand(CommandKind command);
+            void RequestCustomCommand(std::size_t slot);
+            void ExecuteCustomCommand(std::size_t slot, std::string expandedCommand);
+            void DispatchConfiguredAction(
+                const NpcSnapshot& npc,
+                TargetSource source,
+                std::string_view actionID);
+            void HandleNpcRowActivation(
+                const RowInteraction& interaction,
+                const NpcSnapshot& npc,
+                TargetSource source);
+            void RenderQuickActionButton(
+                const NpcSnapshot& npc,
+                TargetSource source,
+                float width = -1.0F);
             void RequestPrepareForUninstall();
             void ExecuteCommand(CommandKind command, CommandOptions options = {});
             void QueueEnabledStateRefresh(
@@ -181,6 +202,7 @@ namespace whereabouts
             CommandPolicy& commandPolicy_;
             CommandService& commandService_;
             SavedNpcStore& savedNpcs_;
+            FavoriteService& favorites_;
             Settings& settings_;
             RuntimeSettingsState& runtimeSettings_;
             const SettingsRepository& settingsRepository_;
@@ -191,15 +213,31 @@ namespace whereabouts
             std::array<char, 128> locationFilter_{};
             std::array<char, 128> factionOptionSearch_{};
             std::array<char, 128> keywordOptionSearch_{};
+            std::array<char, 128> touchingPluginSearch_{};
+            std::array<char, 128> originalPluginSearch_{};
+            std::array<char, 128> winningPluginSearch_{};
+            std::array<char, 128> classOptionSearch_{};
+            std::array<char, 128> voiceTypeOptionSearch_{};
+            std::array<char, 128> combatStyleOptionSearch_{};
             std::array<char, 128> favoriteListSearch_{};
             std::array<char, 128> recentListSearch_{};
             std::array<char, 128> trackedListSearch_{};
+            std::array<char, 256> inspectorSearchText_{};
             std::vector<std::string> selectedPluginFilters_;
+            std::vector<std::string> touchingPluginFilters_;
+            std::vector<std::string> originalPluginFilters_;
+            std::vector<std::string> winningPluginFilters_;
             std::string exactLocationFilter_;
             std::vector<RecordFilterOption> factionFilterOptions_;
             std::vector<RecordFilterOption> keywordFilterOptions_;
+            std::vector<RecordFilterOption> classFilterOptions_;
+            std::vector<RecordFilterOption> voiceTypeFilterOptions_;
+            std::vector<RecordFilterOption> combatStyleFilterOptions_;
             RecordOptionMatches visibleFactionOptions_;
             RecordOptionMatches visibleKeywordOptions_;
+            RecordOptionMatches visibleClassOptions_;
+            RecordOptionMatches visibleVoiceTypeOptions_;
+            RecordOptionMatches visibleCombatStyleOptions_;
             std::string controllerBackup_;
             std::vector<NpcSnapshot> controllerResultsBackup_;
             std::vector<LocationSnapshot> controllerLocationResultsBackup_;
@@ -222,6 +260,7 @@ namespace whereabouts
             std::vector<NpcSnapshot> results_;
             std::vector<LocationSnapshot> locationResults_;
             std::vector<LocationSnapshot> searchLocationResults_;
+            std::vector<NpcSnapshot> inspectorResults_;
             std::vector<std::string> searchSuggestions_;
             std::optional<PendingEnabledState> pendingEnabledState_;
             std::size_t resultTotal_{0};
@@ -235,10 +274,16 @@ namespace whereabouts
             std::optional<LocationSnapshot> pendingLocationTravel_;
             std::optional<CommandKind> pendingCommand_;
             std::uint32_t pendingCommandRuntimeID_{0};
+            std::array<std::array<char, 65>, kCustomCommandSlotCount> customCommandNameBuffers_{};
+            std::array<std::array<char, 513>, kCustomCommandSlotCount> customCommandTextBuffers_{};
+            bool customCommandBuffersLoaded_{false};
             std::uint64_t seenIndexSession_{static_cast<std::uint64_t>(-1)};
             std::uint64_t seenIndexRevision_{static_cast<std::uint64_t>(-1)};
             std::uint64_t recordOptionsSession_{static_cast<std::uint64_t>(-1)};
             std::uint64_t recordOptionsRevision_{static_cast<std::uint64_t>(-1)};
+            std::uint64_t inspectorIndexSession_{static_cast<std::uint64_t>(-1)};
+            std::uint64_t inspectorIndexRevision_{static_cast<std::uint64_t>(-1)};
+            std::atomic_uint64_t pendingSelectionSerial_{0};
             std::uint32_t seenTargetFormID_{0};
             TargetSource selectedSource_{TargetSource::None};
             int sortIndex_{0};
@@ -265,8 +310,24 @@ namespace whereabouts
             std::optional<RecordFilterSelection> baseKeywordFilter_;
             bool unknownBaseKeywordsOnly_{false};
             std::string baseKeywordFilterLabel_;
+            int multiplePluginRecordsFilter_{0};
+            int minimumPluginRecordCount_{0};
+            int maximumPluginRecordCount_{0};
+            std::optional<RecordFilterSelection> classFilter_;
+            bool unknownClassOnly_{false};
+            std::string classFilterLabel_;
+            std::optional<RecordFilterSelection> voiceTypeFilter_;
+            bool unknownVoiceTypeOnly_{false};
+            std::string voiceTypeFilterLabel_;
+            std::optional<RecordFilterSelection> combatStyleFilter_;
+            bool unknownCombatStyleOnly_{false};
+            std::string combatStyleFilterLabel_;
+            int levelScalingFilter_{0};
             bool factionOptionResultsDirty_{true};
             bool keywordOptionResultsDirty_{true};
+            bool classOptionResultsDirty_{true};
+            bool voiceTypeOptionResultsDirty_{true};
+            bool combatStyleOptionResultsDirty_{true};
             ListPaginationState favoriteListPagination_{};
             ListPaginationState recentListPagination_{};
             ListPaginationState trackedListPagination_{};

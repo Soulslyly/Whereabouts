@@ -59,6 +59,19 @@ namespace whereabouts
         bool unknownFactionsOnly{false};
         std::optional<RecordFilterSelection> baseKeyword;
         bool unknownBaseKeywordsOnly{false};
+        std::vector<std::string> touchingPlugins;
+        std::vector<std::string> originalPlugins;
+        std::vector<std::string> winningPlugins;
+        KnownBooleanFilter multiplePluginRecords{KnownBooleanFilter::Any};
+        std::optional<std::size_t> minimumPluginRecordCount;
+        std::optional<std::size_t> maximumPluginRecordCount;
+        std::optional<RecordFilterSelection> npcClass;
+        bool unknownClassOnly{false};
+        std::optional<RecordFilterSelection> voiceType;
+        bool unknownVoiceTypeOnly{false};
+        std::optional<RecordFilterSelection> combatStyle;
+        bool unknownCombatStyleOnly{false};
+        KnownBooleanFilter levelScaled{KnownBooleanFilter::Any};
         bool favoritesOnly{false};
         bool trackedOnly{false};
         bool sameLocationOnly{false};
@@ -100,6 +113,16 @@ namespace whereabouts
         count += filters.worldspaceFormID.has_value() || filters.unknownWorldspaceOnly;
         count += filters.faction.has_value() || filters.unknownFactionsOnly;
         count += filters.baseKeyword.has_value() || filters.unknownBaseKeywordsOnly;
+        count += !filters.touchingPlugins.empty();
+        count += !filters.originalPlugins.empty();
+        count += !filters.winningPlugins.empty();
+        count += filters.multiplePluginRecords != KnownBooleanFilter::Any;
+        count += filters.minimumPluginRecordCount.has_value();
+        count += filters.maximumPluginRecordCount.has_value();
+        count += filters.npcClass.has_value() || filters.unknownClassOnly;
+        count += filters.voiceType.has_value() || filters.unknownVoiceTypeOnly;
+        count += filters.combatStyle.has_value() || filters.unknownCombatStyleOnly;
+        count += filters.levelScaled != KnownBooleanFilter::Any;
         count += filters.favoritesOnly;
         count += filters.trackedOnly;
         count += filters.sameLocationOnly;
@@ -127,6 +150,16 @@ namespace whereabouts
         count += filters.worldspaceFormID.has_value() || filters.unknownWorldspaceOnly;
         count += filters.faction.has_value() || filters.unknownFactionsOnly;
         count += filters.baseKeyword.has_value() || filters.unknownBaseKeywordsOnly;
+        count += !filters.touchingPlugins.empty();
+        count += !filters.originalPlugins.empty();
+        count += !filters.winningPlugins.empty();
+        count += filters.multiplePluginRecords != KnownBooleanFilter::Any;
+        count += filters.minimumPluginRecordCount.has_value();
+        count += filters.maximumPluginRecordCount.has_value();
+        count += filters.npcClass.has_value() || filters.unknownClassOnly;
+        count += filters.voiceType.has_value() || filters.unknownVoiceTypeOnly;
+        count += filters.combatStyle.has_value() || filters.unknownCombatStyleOnly;
+        count += filters.levelScaled != KnownBooleanFilter::Any;
         return count;
     }
 
@@ -166,6 +199,19 @@ namespace whereabouts
         filters.unknownFactionsOnly = false;
         filters.baseKeyword.reset();
         filters.unknownBaseKeywordsOnly = false;
+        filters.touchingPlugins.clear();
+        filters.originalPlugins.clear();
+        filters.winningPlugins.clear();
+        filters.multiplePluginRecords = KnownBooleanFilter::Any;
+        filters.minimumPluginRecordCount.reset();
+        filters.maximumPluginRecordCount.reset();
+        filters.npcClass.reset();
+        filters.unknownClassOnly = false;
+        filters.voiceType.reset();
+        filters.unknownVoiceTypeOnly = false;
+        filters.combatStyle.reset();
+        filters.unknownCombatStyleOnly = false;
+        filters.levelScaled = KnownBooleanFilter::Any;
     }
 
     struct SearchError

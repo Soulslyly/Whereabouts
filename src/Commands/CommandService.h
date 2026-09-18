@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Commands/CommandPolicy.h"
+#include "Commands/CommandActions.h"
 #include "Lifecycle/RequestSerialGate.h"
 #include "Lifecycle/OperationEpoch.h"
 #include "Lifecycle/OperationQueue.h"
@@ -22,6 +23,7 @@ namespace whereabouts
 {
     class RuntimeIndex;
     class SavedNpcStore;
+    class FavoriteService;
     class TrackingService;
 
     class CommandService final : public RE::BSTEventSink<RE::MenuOpenCloseEvent>
@@ -30,7 +32,7 @@ namespace whereabouts
         CommandService(
             RuntimeIndex& index,
             TrackingService& tracking,
-            SavedNpcStore& savedNpcs,
+            FavoriteService& favorites,
             OperationQueue& operationQueue,
             UiCompletionMailbox& completions,
             const RuntimeSettingsState& settings) noexcept;
@@ -39,6 +41,14 @@ namespace whereabouts
         void RegisterConsoleSelectionEvents();
         void UnregisterConsoleSelectionEvents();
         void CancelPendingOperations() noexcept;
+        void BeginSession(OperationEpochToken token) noexcept;
+        void ClearTransientState() noexcept;
+        [[nodiscard]] bool HasOriginalFlags(
+            std::uint32_t ownerRuntimeFormID,
+            OperationEpochToken token) const noexcept;
+        [[nodiscard]] std::optional<ActorFlagPair> OriginalFlags(
+            std::uint32_t ownerRuntimeFormID,
+            OperationEpochToken token) const noexcept;
         void RequestPendingConsoleSelectionAttempt() noexcept;
         [[nodiscard]] bool IsEnabledStateRequestCurrent(std::uint64_t requestSerial) const noexcept;
 
@@ -46,6 +56,10 @@ namespace whereabouts
             CommandKind command,
             const SelectedTarget& target,
             CommandOptions options,
+            OperationEpochToken token);
+        [[nodiscard]] std::expected<void, std::string> ExecuteCustomCommand(
+            const SelectedTarget& target,
+            std::string_view command,
             OperationEpochToken token);
 
         RE::BSEventNotifyControl ProcessEvent(
@@ -69,6 +83,11 @@ namespace whereabouts
             OperationEpochToken token);
         [[nodiscard]] std::expected<void, std::string> SelectInConsole(
             RE::Actor& actor, OperationEpochToken token);
+        [[nodiscard]] std::expected<void, std::string> ChangeActorFlags(
+            RE::Actor& actor,
+            SafetyFlagOperation operation,
+            std::uint32_t ownerRuntimeFormID,
+            OperationEpochToken token);
         void TryApplyPendingConsoleSelection(std::uint64_t requestSerial);
         void CancelPendingConsoleSelection() noexcept;
         [[nodiscard]] bool CompletePendingConsoleSelection(std::uint64_t requestSerial) noexcept;
@@ -84,7 +103,7 @@ namespace whereabouts
 
         RuntimeIndex& index_;
         TrackingService& tracking_;
-        SavedNpcStore& savedNpcs_;
+        FavoriteService& favorites_;
         OperationQueue& operationQueue_;
         UiCompletionMailbox& completions_;
         const RuntimeSettingsState& settings_;
@@ -100,5 +119,7 @@ namespace whereabouts
         std::chrono::steady_clock::time_point pendingConsoleDeadline_{};
         std::atomic_bool pendingConsoleActive_{false};
         bool consoleEventsRegistered_{false};
+        OriginalActorFlagStore originalActorFlags_;
+        RE::Script* customCommandScript_{nullptr};
     };
 }

@@ -6,6 +6,8 @@
 #include "Lifecycle/OperationQueue.h"
 #include "Lifecycle/UiCompletionMailbox.h"
 #include "Persistence/Serialization.h"
+#include "Persistence/SharedFavorites.h"
+#include "Persistence/FavoriteService.h"
 #include "Persistence/Settings.h"
 #include "Persistence/RuntimeSettingsState.h"
 #include "Search/RuntimeIndex.h"
@@ -27,7 +29,10 @@ namespace whereabouts
     class AppContext
     {
     public:
-        AppContext(Settings loadedSettings, std::filesystem::path settingsPath);
+        AppContext(
+            Settings loadedSettings,
+            std::filesystem::path settingsPath,
+            std::filesystem::path sharedFavoritesPath);
         ~AppContext();
 
         [[nodiscard]] std::optional<OperationEpochToken> ActivateInitialSession() noexcept;
@@ -42,6 +47,8 @@ namespace whereabouts
         RuntimeSettingsState runtimeSettings;
         SettingsRepository settingsRepository;
         SavedNpcStore savedNpcs;
+        SharedFavoritesRepository sharedFavoritesRepository;
+        FavoriteService favorites;
         TrackingService tracking;
         RuntimeIndex index;
         IndexCoordinator indexCoordinator;
