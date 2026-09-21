@@ -177,6 +177,14 @@ namespace whereabouts
         Recent
     };
 
+    [[nodiscard]] constexpr bool ShouldRetainTargetSelection(
+        bool actorResolved,
+        std::uint32_t runtimeFormID,
+        TargetSource source) noexcept
+    {
+        return source != TargetSource::None && (actorResolved || runtimeFormID != 0);
+    }
+
     [[nodiscard]] constexpr std::string_view TargetSourceLabel(TargetSource source) noexcept
     {
         switch (source) {

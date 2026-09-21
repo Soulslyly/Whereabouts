@@ -23,6 +23,7 @@ namespace whereabouts::ui
         TrackedOnly,
         SameLocation,
         IncludeGeneric,
+        Availability,
         Sort,
         Direction,
         ClearCommon,
@@ -30,6 +31,7 @@ namespace whereabouts::ui
         Sex,
         Essential,
         Protected,
+        RecordedCell,
         Area,
         LocationData,
         Worldspace,
@@ -130,7 +132,8 @@ namespace whereabouts::ui
                 Row({Cell(FilterControl::Follower), Cell(FilterControl::PotentialFollower),
                     Cell(FilterControl::Loaded)}),
                 Row({Cell(FilterControl::FavoritesOnly), Cell(FilterControl::TrackedOnly),
-                    Cell(FilterControl::SameLocation), Cell(FilterControl::IncludeGeneric)}),
+                    Cell(FilterControl::SameLocation), Cell(FilterControl::IncludeGeneric),
+                    Cell(FilterControl::Availability)}),
                 Row({Cell(FilterControl::Sort), Cell(FilterControl::Direction),
                     Cell(FilterControl::ClearCommon)})};
         } else {
@@ -141,7 +144,8 @@ namespace whereabouts::ui
                     Cell(FilterControl::Follower), Cell(FilterControl::PotentialFollower),
                     Cell(FilterControl::Loaded)}),
                 Row({Cell(FilterControl::FavoritesOnly), Cell(FilterControl::TrackedOnly),
-                    Cell(FilterControl::SameLocation), Cell(FilterControl::IncludeGeneric)}),
+                    Cell(FilterControl::SameLocation), Cell(FilterControl::IncludeGeneric),
+                    Cell(FilterControl::Availability)}),
                 Row({Cell(FilterControl::Sort), Cell(FilterControl::Direction),
                     Cell(FilterControl::ClearCommon)})};
         }
@@ -171,7 +175,8 @@ namespace whereabouts::ui
         if (density == ResultDensity::Detailed) {
             rows = {
                 Row({Cell(FilterControl::Race), Cell(FilterControl::Sex),
-                    Cell(FilterControl::Essential), Cell(FilterControl::Protected)}),
+                    Cell(FilterControl::Essential), Cell(FilterControl::Protected),
+                    Cell(FilterControl::RecordedCell)}),
                 Row({Cell(FilterControl::Area), Cell(FilterControl::LocationData),
                     Cell(FilterControl::Worldspace), Cell(FilterControl::LevelScaled),
                     Cell(FilterControl::MinimumPluginRecords),
@@ -185,7 +190,8 @@ namespace whereabouts::ui
             rows = {
                 Row({Cell(FilterControl::Race), Cell(FilterControl::Sex),
                     Cell(FilterControl::Essential), Cell(FilterControl::Protected),
-                    Cell(FilterControl::Area), Cell(FilterControl::LocationData)}),
+                    Cell(FilterControl::Area), Cell(FilterControl::LocationData),
+                    Cell(FilterControl::RecordedCell)}),
                 Row({Cell(FilterControl::Worldspace), Cell(FilterControl::LevelScaled),
                     Cell(FilterControl::ConflictedRecord),
                     Cell(FilterControl::MinimumPluginRecords),
@@ -200,7 +206,8 @@ namespace whereabouts::ui
                 Row({Cell(FilterControl::Race), Cell(FilterControl::Sex),
                     Cell(FilterControl::Essential), Cell(FilterControl::Protected),
                     Cell(FilterControl::Area), Cell(FilterControl::LocationData),
-                    Cell(FilterControl::Worldspace), Cell(FilterControl::LevelScaled)}),
+                    Cell(FilterControl::Worldspace), Cell(FilterControl::LevelScaled),
+                    Cell(FilterControl::RecordedCell)}),
                 Row({Cell(FilterControl::Faction, 2.0F), Cell(FilterControl::BaseKeyword, 2.0F),
                     Cell(FilterControl::TouchesNpcRecord), Cell(FilterControl::OriginalPlugin),
                     Cell(FilterControl::WinningPlugin), Cell(FilterControl::ConflictedRecord)}),

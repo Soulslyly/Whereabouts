@@ -237,6 +237,40 @@ $Whereabouts_Male	Male
 $Whereabouts_Female	Female		
 $Whereabouts_Unknown	Unknown		
 $Whereabouts_Unavailable	Unavailable		
+$Whereabouts_Available	Available		
+$Whereabouts_Availability	Availability		
+$Whereabouts_AvailabilityShort	Avail.		
+$Whereabouts_AvailabilityHelp	Available NPCs currently have a resolved actor reference. Unavailable NPCs are record-only until Skyrim instantiates their reference.		
+$Whereabouts_Known	Known		
+$Whereabouts_RecordedCell	Recorded Cell		
+$Whereabouts_RecordedCellFilterHelp	Known means the winning placed NPC record identifies an exact owning cell.		
+$Whereabouts_ConfirmMovement	Confirm movement		
+$Whereabouts_TravelToCell	Travel to Cell		
+$Whereabouts_Return	Return		
+$Whereabouts_DestinationCell	destination cell		
+$Whereabouts_PreviousLocation	previous location		
+$Whereabouts_ReturnPrompt	Return to the previous location? This closes the SKSE menu.		
+$Whereabouts_ReturnHelp	Return to the exact position saved before the latest Travel to Cell.		
+$Whereabouts_TravelCellTooltip	Travel to {} to try to materialize {}. This does not guarantee the NPC will be enabled or nearby.		{} {}
+$Whereabouts_TravelCellQueued	Travel to Cell queued.		
+$Whereabouts_ReturnQueued	Return queued.		
+$Whereabouts_MovementCancelled	Movement cancelled.		
+$Whereabouts_NoRecordedCell	No exact recorded cell is available for this NPC.		
+$Whereabouts_RecordedCellLoaded	Recorded cell loaded. The NPC may remain unavailable if disabled or quest-gated.		
+$Whereabouts_ReturnRestoreQueued	Return queued; exact position will be restored after the cell settles.		
+$Whereabouts_ReturnCellSettleFailed	Return failed because the origin cell did not finish loading. The return point was kept.		
+$Whereabouts_ReturnVerificationFailed	Return position could not be verified. The return point was kept.		
+$Whereabouts_ReturnComplete	Returned to the previous location.		
+$Whereabouts_RecordedCellUnknownHelp	Recorded cell: Unknown. The winning placed NPC record did not provide an exact owning cell, so Whereabouts cannot offer Travel to Cell.		
+$Whereabouts_RecordedCellUnresolvedHelp	The exact recorded cell is known but does not currently resolve, so Travel to Cell is unavailable.		
+$Whereabouts_TravelCellLimitHelp	Travel to Cell loads the owning cell but may not place you beside this NPC if it remains disabled or quest-gated.		
+$Whereabouts_UnnamedCell	Unnamed cell		
+$Whereabouts_CellFormId	Cell FormID		
+$Whereabouts_CellEditorId	Cell EditorID		
+$Whereabouts_StableCellIdentity	Stable cell identity		
+$Whereabouts_CellType	Cell type		
+$Whereabouts_RecordedWorldspace	Recorded worldspace		
+$Whereabouts_CopiedValue	Copied {}.		{}
 $Whereabouts_NpcNoLongerAvailable	NPC is no longer available		
 $Whereabouts_UnknownCommand	Unknown command		
 $Whereabouts_Dynamic	Dynamic		
@@ -525,3 +559,7 @@ $Whereabouts_DensityOverridesHelp	Use Global follows the top-level density. Over
 $Whereabouts_Results	Results		
 $Whereabouts_SelectedNpcAndCommands	Selected NPC and commands		
 $Whereabouts_SavedListsDensityArea	Recent, Favorites, and Tracked		
+$Whereabouts_HideUnavailableNpcs	Hide unavailable NPCs		
+$Whereabouts_HideUnavailableShort	Hide unavailable		
+$Whereabouts_HideUnavailableHelp	Hides indexed NPC records whose placed reference has not been instantiated by Skyrim yet.		
+$Whereabouts_UnavailableNpcExplanation	This NPC's placed record is indexed, but Skyrim has not instantiated its reference because its cell has not loaded. Live status and commands become available automatically when the reference loads.		

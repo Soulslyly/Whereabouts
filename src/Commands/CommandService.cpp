@@ -267,11 +267,13 @@ namespace whereabouts
     void CommandService::BeginSession(OperationEpochToken token) noexcept
     {
         originalActorFlags_.BeginSession(token);
+        returnPoint_.BeginSession(token);
     }
 
     void CommandService::ClearTransientState() noexcept
     {
         originalActorFlags_.Clear();
+        returnPoint_.Clear();
         if (customCommandScript_) customCommandScript_->ClearCommand();
     }
 
@@ -287,6 +289,124 @@ namespace whereabouts
         OperationEpochToken token) const noexcept
     {
         return originalActorFlags_.Original(ownerRuntimeFormID, token);
+    }
+
+    bool CommandService::HasReturnPoint(OperationEpochToken token) const noexcept
+    {
+        return returnPoint_.Current(token).has_value();
+    }
+
+    bool CommandService::IsRecordedCellResolvable(
+        const RecordedCellSnapshot& recorded) const noexcept
+    {
+        if (!recorded.Known() || recorded.runtimeFormID == 0) return false;
+        const auto* cell = RE::TESForm::LookupByID<RE::TESObjectCELL>(recorded.runtimeFormID);
+        const auto identity = TryGetFormIdentity(cell);
+        return cell && identity && *identity == recorded.identity;
+    }
+
+    std::expected<void, std::string> CommandService::TravelToRecordedCell(
+        const RecordedCellSnapshot& destination,
+        std::uint32_t selectedRuntimeFormID,
+        OperationEpochToken token)
+    {
+        if (!token) return std::unexpected("The current game session is not ready");
+        auto* destinationCell = RE::TESForm::LookupByID<RE::TESObjectCELL>(
+            destination.runtimeFormID);
+        const auto destinationIdentity = TryGetFormIdentity(destinationCell);
+        if (!destinationCell || !destinationIdentity || *destinationIdentity != destination.identity) {
+            return std::unexpected("The recorded cell is no longer available");
+        }
+        auto* player = RE::PlayerCharacter::GetSingleton();
+        if (!player) return std::unexpected("The player is not available");
+        auto* originCell = player->GetParentCell();
+        const auto originIdentity = TryGetFormIdentity(originCell);
+        if (!originCell || !originIdentity || !originIdentity->IsPersistable()) {
+            return std::unexpected("The player's current cell cannot be recorded safely");
+        }
+        FormIdentity worldspace;
+        if (const auto identity = TryGetFormIdentity(player->GetWorldspace())) worldspace = *identity;
+        const auto position = player->GetPosition();
+        const auto angle = player->GetAngle();
+        ReturnPoint point{
+            .cell = *originIdentity,
+            .cellRuntimeFormID = originCell->GetFormID(),
+            .worldspace = std::move(worldspace),
+            .position = {position.x, position.y, position.z},
+            .angle = {angle.x, angle.y, angle.z},
+            .session = token};
+        if (!player->CenterOnCell(destinationCell)) {
+            return std::unexpected("Skyrim could not travel to the recorded cell");
+        }
+        returnPoint_.Replace(std::move(point));
+        QueueRecordedCellRefresh(selectedRuntimeFormID, token);
+        return {};
+    }
+
+    std::expected<void, std::string> CommandService::ReturnToPreviousLocation(
+        OperationEpochToken token)
+    {
+        const auto point = returnPoint_.Current(token);
+        if (!point) return std::unexpected("No return location is available this session");
+        auto* cell = RE::TESForm::LookupByID<RE::TESObjectCELL>(point->cellRuntimeFormID);
+        const auto identity = TryGetFormIdentity(cell);
+        if (!cell || !identity || *identity != point->cell) {
+            return std::unexpected("The return cell is no longer available");
+        }
+        auto* player = RE::PlayerCharacter::GetSingleton();
+        if (!player) return std::unexpected("The player is not available");
+        if (!player->CenterOnCell(cell)) {
+            return std::unexpected("Skyrim could not load the return cell");
+        }
+        const auto submitted = operationQueue_.SubmitGame(token, [this, point = *point] {
+            auto* currentPlayer = RE::PlayerCharacter::GetSingleton();
+            auto* currentCell = currentPlayer ? currentPlayer->GetParentCell() : nullptr;
+            const auto currentIdentity = TryGetFormIdentity(currentCell);
+            if (!currentPlayer || !currentIdentity || *currentIdentity != point.cell) {
+                logger::warn("Return position was not restored because the origin cell did not settle");
+                completions_.PushContextualMovement({
+                    false,
+                    "Return failed because the origin cell did not finish loading. The return point was kept.",
+                    point.session});
+                return;
+            }
+            currentPlayer->SetPosition(
+                {point.position.x, point.position.y, point.position.z}, true);
+            currentPlayer->SetAngle({point.angle.x, point.angle.y, point.angle.z});
+            const auto actualPosition = currentPlayer->GetPosition();
+            const auto actualAngle = currentPlayer->GetAngle();
+            if (!ReturnTransformMatches(
+                    point.position,
+                    point.angle,
+                    {actualPosition.x, actualPosition.y, actualPosition.z},
+                    {actualAngle.x, actualAngle.y, actualAngle.z})) {
+                logger::warn("Return position verification failed; keeping the return point");
+                completions_.PushContextualMovement({
+                    false,
+                    "Return position could not be verified. The return point was kept.",
+                    point.session});
+                return;
+            }
+            static_cast<void>(returnPoint_.ConsumeIfMatches(point, point.session));
+            logger::info("Return to previous location completed");
+            completions_.PushContextualMovement({
+                true,
+                "Returned to the previous location.",
+                point.session});
+        });
+        if (!submitted) return std::unexpected("The return request could not be queued");
+        return {};
+    }
+
+    void CommandService::QueueRecordedCellRefresh(
+        std::uint32_t runtimeFormID,
+        OperationEpochToken token) noexcept
+    {
+        if (runtimeFormID == 0 || !token) return;
+        static_cast<void>(operationQueue_.SubmitGame(token,
+            [this, runtimeFormID] {
+                static_cast<void>(index_.RefreshRuntimeId(runtimeFormID));
+            }));
     }
 
     void CommandService::CancelPendingConsoleSelection() noexcept

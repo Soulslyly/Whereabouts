@@ -3,6 +3,7 @@
 #include "Core/NpcIdentity.h"
 #include "Core/NpcSex.h"
 #include "Core/RecordProjection.h"
+#include "Core/RecordedCellSnapshot.h"
 #include "Core/SpatialSnapshot.h"
 
 #include <cstdint>
@@ -42,6 +43,7 @@ namespace whereabouts
         std::string referenceEditorID;
         std::string baseEditorID;
         std::shared_ptr<const NpcRecordProjection> recordProjection;
+        std::optional<RecordedCellSnapshot> recordedCell;
         std::size_t indexedReferencesSharingBase{0};
         std::size_t indexedReferencesSharingBaseDataOwner{0};
         SpatialSnapshot spatial;

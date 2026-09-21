@@ -4,6 +4,7 @@
 
 #include <cstdint>
 #include <mutex>
+#include <string>
 #include <vector>
 
 namespace whereabouts
@@ -16,10 +17,18 @@ namespace whereabouts
         std::uint64_t requestSerial{0};
     };
 
+    struct ContextualMovementCompletion
+    {
+        bool succeeded{false};
+        std::string message;
+        OperationEpochToken epoch;
+    };
+
     struct UiCompletionBatch
     {
         std::vector<TrackingCompletion> tracking;
         std::vector<EnabledStateCompletion> enabled;
+        std::vector<ContextualMovementCompletion> contextualMovement;
     };
 
     class UiCompletionMailbox
@@ -27,6 +36,7 @@ namespace whereabouts
     public:
         void PushTracking(TrackingCompletion completion);
         void PushEnabled(EnabledStateCompletion completion);
+        void PushContextualMovement(ContextualMovementCompletion completion);
         [[nodiscard]] UiCompletionBatch Drain();
         void Clear() noexcept;
 

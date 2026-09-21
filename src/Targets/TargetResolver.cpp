@@ -94,7 +94,18 @@ namespace whereabouts
             const auto resolved = TryGetNpcIdentity(actor.get());
             if (!resolved || !ResolvedReferenceMatches(snapshot.identity, *resolved)) actor.reset();
         }
-        return actor && Select(*actor, source);
+        if (actor) return Select(*actor, source);
+        if (!ShouldRetainTargetSelection(false, snapshot.ReferenceRuntimeID(), source)) {
+            return false;
+        }
+
+        SelectedTarget selected;
+        selected.identity = snapshot.identity;
+        selected.displayName = snapshot.displayName;
+        selected.source = source;
+        std::scoped_lock lock(currentMutex_);
+        current_ = std::move(selected);
+        return true;
     }
 
     void TargetResolver::Clear() noexcept

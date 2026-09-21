@@ -69,6 +69,7 @@ add_library(
         src/API/PublicApi.cpp
         src/Commands/CommandPolicy.cpp
         src/Commands/CommandActions.cpp
+        src/Commands/CellTravel.cpp
         src/Core/DistanceFormat.cpp
         src/Core/SnapshotState.cpp
         src/Core/SpatialPresentation.cpp
@@ -85,6 +86,7 @@ add_library(
         src/Persistence/Settings.cpp
         src/Search/EditorIdLookup.cpp
         src/Search/LocationSearch.cpp
+        src/Search/PluginStructure.cpp
         src/Search/SearchEngine.cpp
         src/Search/SearchText.cpp
         src/Tracking/TrackingLifecycle.cpp

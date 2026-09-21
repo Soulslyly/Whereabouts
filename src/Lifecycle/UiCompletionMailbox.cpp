@@ -16,6 +16,13 @@ namespace whereabouts
         pending_.enabled.push_back(completion);
     }
 
+    void UiCompletionMailbox::PushContextualMovement(
+        ContextualMovementCompletion completion)
+    {
+        std::scoped_lock lock(mutex_);
+        pending_.contextualMovement.push_back(std::move(completion));
+    }
+
     UiCompletionBatch UiCompletionMailbox::Drain()
     {
         UiCompletionBatch result;

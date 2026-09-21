@@ -44,6 +44,7 @@ namespace whereabouts
         std::optional<bool> teammate;
         std::optional<bool> potentialFollower;
         std::optional<bool> loaded;
+        KnownBooleanFilter availability{KnownBooleanFilter::Any};
         std::optional<std::string> location;
         bool locationExact{false};
         std::optional<std::string> race;
@@ -51,6 +52,7 @@ namespace whereabouts
         std::optional<NpcSex> sex;
         KnownBooleanFilter essential{KnownBooleanFilter::Any};
         KnownBooleanFilter protectedActor{KnownBooleanFilter::Any};
+        KnownBooleanFilter recordedCell{KnownBooleanFilter::Any};
         std::optional<SpatialKind> spatialKind;
         std::optional<SpatialFreshness> spatialFreshness;
         std::optional<std::uint32_t> worldspaceFormID;
@@ -103,11 +105,13 @@ namespace whereabouts
         count += filters.teammate.has_value();
         count += filters.potentialFollower.has_value();
         count += filters.loaded.has_value();
+        count += filters.availability != KnownBooleanFilter::Any;
         count += filters.location.has_value();
         count += filters.race.has_value() || filters.unknownRaceOnly;
         count += filters.sex.has_value();
         count += filters.essential != KnownBooleanFilter::Any;
         count += filters.protectedActor != KnownBooleanFilter::Any;
+        count += filters.recordedCell != KnownBooleanFilter::Any;
         count += filters.spatialKind.has_value();
         count += filters.spatialFreshness.has_value();
         count += filters.worldspaceFormID.has_value() || filters.unknownWorldspaceOnly;
@@ -145,6 +149,7 @@ namespace whereabouts
         count += filters.sex.has_value();
         count += filters.essential != KnownBooleanFilter::Any;
         count += filters.protectedActor != KnownBooleanFilter::Any;
+        count += filters.recordedCell != KnownBooleanFilter::Any;
         count += filters.spatialKind.has_value();
         count += filters.spatialFreshness.has_value();
         count += filters.worldspaceFormID.has_value() || filters.unknownWorldspaceOnly;
@@ -175,6 +180,7 @@ namespace whereabouts
         count += filters.teammate.has_value();
         count += filters.potentialFollower.has_value();
         count += filters.loaded.has_value();
+        count += filters.availability != KnownBooleanFilter::Any;
         count += filters.location.has_value();
         count += filters.favoritesOnly;
         count += filters.trackedOnly;
@@ -191,6 +197,7 @@ namespace whereabouts
         filters.sex.reset();
         filters.essential = KnownBooleanFilter::Any;
         filters.protectedActor = KnownBooleanFilter::Any;
+        filters.recordedCell = KnownBooleanFilter::Any;
         filters.spatialKind.reset();
         filters.spatialFreshness.reset();
         filters.worldspaceFormID.reset();

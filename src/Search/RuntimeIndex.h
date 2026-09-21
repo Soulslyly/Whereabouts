@@ -20,10 +20,25 @@
 
 namespace whereabouts
 {
+    struct PlacedNpcRecordCandidate
+    {
+        std::uint32_t referenceRuntimeFormID{0};
+        std::uint32_t baseRuntimeFormID{0};
+        FormIdentity referenceStable;
+        bool deleted{false};
+        std::optional<RecordedCellSnapshot> recordedCell;
+
+        [[nodiscard]] bool operator==(const PlacedNpcRecordCandidate&) const noexcept = default;
+    };
+
+    [[nodiscard]] std::vector<PlacedNpcRecordCandidate> SelectWinningPlacedNpcRecords(
+        std::span<const PlacedNpcRecordCandidate> candidates);
+
     [[nodiscard]] std::vector<std::uint32_t> MergeActorDiscoveryCandidateIds(
         std::span<const std::uint32_t> actorArrayIds,
         std::span<const std::uint32_t> globalRegistryIds,
-        std::span<const std::uint32_t> cellPersistentIds);
+        std::span<const std::uint32_t> cellPersistentIds,
+        std::span<const std::uint32_t> cellActiveIds);
 
     struct RuntimeIndexDiagnostics
     {

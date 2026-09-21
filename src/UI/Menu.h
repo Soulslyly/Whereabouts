@@ -101,6 +101,7 @@ namespace whereabouts
             void SelectSnapshot(const NpcSnapshot& snapshot, TargetSource source);
             void SelectLocation(const LocationSnapshot& snapshot);
             void RenderDetails(ResultDensity density);
+            [[nodiscard]] std::string NpcLocationLabel(const NpcSnapshot& npc) const;
             void RenderLocationDetails();
             void RenderSearchLocationResults();
             void RenderSearchFilters(bool& searchOptionsChanged, bool& catalogModeChanged);
@@ -109,12 +110,16 @@ namespace whereabouts
             void RenderTrackingWarning();
             void RenderPrepareForUninstall();
             void RenderLocationTravelConfirmation();
+            void RenderContextualMovementConfirmation();
             [[nodiscard]] bool RenderUninstallLockedPage();
             void RenderUninstallLockedSettings();
             void ResumeAfterUninstallPreparation();
             void RequestLocationTravel();
             void ObserveLocationTravelClose(bool frameworkWindowOpen);
             void SubmitPendingLocationTravel();
+            void RequestContextualMovement(ContextualMovementAction action);
+            void ObserveContextualMovementClose(bool frameworkWindowOpen);
+            void SubmitPendingContextualMovement();
             void SetLocationStatus(std::string status);
             [[nodiscard]] std::string LocationStatus() const;
             static void CenterNextModal();
@@ -272,6 +277,9 @@ namespace whereabouts
             std::optional<NpcSnapshot> selected_;
             std::optional<LocationSnapshot> selectedLocation_;
             std::optional<LocationSnapshot> pendingLocationTravel_;
+            std::optional<ContextualMovementAction> pendingContextualMovement_;
+            std::optional<RecordedCellSnapshot> pendingRecordedCell_;
+            std::uint32_t pendingContextualNpcRuntimeID_{0};
             std::optional<CommandKind> pendingCommand_;
             std::uint32_t pendingCommandRuntimeID_{0};
             std::array<std::array<char, 65>, kCustomCommandSlotCount> customCommandNameBuffers_{};
@@ -299,6 +307,7 @@ namespace whereabouts
             int sexFilter_{0};
             int essentialFilter_{0};
             int protectedFilter_{0};
+            int recordedCellFilter_{0};
             int spatialKindFilter_{0};
             int spatialFreshnessFilter_{0};
             std::uint32_t worldspaceFilterFormID_{0};
@@ -339,6 +348,7 @@ namespace whereabouts
             SearchContent searchContent_{SearchContent::NpcsOnly};
             ResultSectionOrder resultSectionOrder_{ResultSectionOrder::NpcsFirst};
             bool includeGeneric_{false};
+            int availabilityFilter_{0};
             bool genericOnly_{false};
             bool genericAutoContext_{false};
             bool searchAfterIndexRefresh_{false};
@@ -349,10 +359,14 @@ namespace whereabouts
             bool openTrackingWarning_{false};
             bool openPrepareForUninstall_{false};
             bool openLocationTravelConfirmation_{false};
+            bool openContextualMovementConfirmation_{false};
             bool openControllerKeyboard_{false};
             bool locationTravelArmed_{false};
             LocationTravelGate locationTravelGate_;
             std::uint64_t locationTravelGeneration_{0};
+            LocationTravelGate contextualMovementGate_;
+            std::uint64_t contextualMovementGeneration_{0};
+            bool contextualMovementArmed_{false};
             bool commandsBlocked_{false};
             ManualRefreshState manualRefreshState_{ManualRefreshState::Idle};
             std::uint64_t manualRefreshSession_{0};

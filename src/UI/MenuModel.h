@@ -2,6 +2,7 @@
 
 #include "Core/TextFold.h"
 #include "Core/RuntimeIndexSnapshot.h"
+#include "Core/SpatialPresentation.h"
 
 #include "Commands/CommandPolicy.h"
 #include "Commands/CommandActions.h"
@@ -30,6 +31,40 @@
 
 namespace whereabouts::ui
 {
+    enum class NpcLocationSource
+    {
+        Observed,
+        RecordedCell,
+        Unavailable
+    };
+
+    struct NpcLocationPresentation
+    {
+        NpcLocationSource source{NpcLocationSource::Unavailable};
+        std::string value;
+    };
+
+    [[nodiscard]] inline NpcLocationPresentation SelectNpcLocationPresentation(
+        const NpcSnapshot& npc)
+    {
+        if (npc.spatial.freshness != SpatialFreshness::Unavailable) {
+            return {NpcLocationSource::Observed, PrimarySpatialLabel(npc.spatial)};
+        }
+        if (npc.recordedCell && npc.recordedCell->Known()) {
+            const auto& cell = *npc.recordedCell;
+            if (!cell.displayName.empty()) {
+                return {NpcLocationSource::RecordedCell, cell.displayName};
+            }
+            if (!cell.editorID.empty()) {
+                return {NpcLocationSource::RecordedCell, cell.editorID};
+            }
+            return {
+                NpcLocationSource::RecordedCell,
+                std::format("{}:{:06X}", cell.identity.plugin, cell.identity.localID)};
+        }
+        return {NpcLocationSource::Unavailable, {}};
+    }
+
     inline constexpr std::array<const char*, 7> kPageNames{
         "Search", "Locations", "Tracked NPCs", "Favorites", "Recent", "NPC Inspector", "Settings"};
     inline constexpr const char* kFollowerFilterLabel{"Follower"};
@@ -881,9 +916,11 @@ namespace whereabouts::ui
 
     enum class DenseStatusBadge
     {
+        Unavailable,
         Favorite,
         Tracked,
         Follower,
+        PotentialFollower,
         Generic,
         Alive,
         Dead,
@@ -891,15 +928,19 @@ namespace whereabouts::ui
         Disabled,
         Loaded,
         Unloaded,
+        Essential,
+        Protected,
         Missing
     };
 
     [[nodiscard]] constexpr std::optional<DenseStatusBadge> DenseStatusBadgeForTag(
         std::string_view tag) noexcept
     {
+        if (tag == "Unavailable") return DenseStatusBadge::Unavailable;
         if (tag == "Favorite") return DenseStatusBadge::Favorite;
         if (tag == "Tracked") return DenseStatusBadge::Tracked;
         if (tag == "Follower") return DenseStatusBadge::Follower;
+        if (tag == "Potential Follower") return DenseStatusBadge::PotentialFollower;
         if (tag == "Generic") return DenseStatusBadge::Generic;
         if (tag == "Alive") return DenseStatusBadge::Alive;
         if (tag == "Dead") return DenseStatusBadge::Dead;
@@ -907,6 +948,8 @@ namespace whereabouts::ui
         if (tag == "Disabled") return DenseStatusBadge::Disabled;
         if (tag == "Loaded") return DenseStatusBadge::Loaded;
         if (tag == "Unloaded") return DenseStatusBadge::Unloaded;
+        if (tag == "Essential") return DenseStatusBadge::Essential;
+        if (tag == "Protected") return DenseStatusBadge::Protected;
         return std::nullopt;
     }
 
@@ -959,9 +1002,11 @@ namespace whereabouts::ui
     {
         if (darkBackground) {
             switch (badge) {
+            case DenseStatusBadge::Unavailable: return {0.75F, 0.45F, 1.00F};
             case DenseStatusBadge::Favorite: return {1.00F, 0.74F, 0.18F};
             case DenseStatusBadge::Tracked: return {0.25F, 0.85F, 1.00F};
             case DenseStatusBadge::Follower: return {1.00F, 0.45F, 0.85F};
+            case DenseStatusBadge::PotentialFollower: return {0.88F, 0.56F, 0.95F};
             case DenseStatusBadge::Generic: return {1.00F, 0.80F, 0.20F};
             case DenseStatusBadge::Alive: return {0.35F, 0.95F, 0.45F};
             case DenseStatusBadge::Dead: return {1.00F, 0.35F, 0.35F};
@@ -969,13 +1014,17 @@ namespace whereabouts::ui
             case DenseStatusBadge::Disabled: return {1.00F, 0.55F, 0.20F};
             case DenseStatusBadge::Loaded: return {0.45F, 0.65F, 1.00F};
             case DenseStatusBadge::Unloaded: return {0.65F, 0.70F, 0.75F};
+            case DenseStatusBadge::Essential: return {0.95F, 0.82F, 0.30F};
+            case DenseStatusBadge::Protected: return {0.40F, 0.85F, 0.95F};
             case DenseStatusBadge::Missing: return {0.75F, 0.45F, 1.00F};
             }
         } else {
             switch (badge) {
+            case DenseStatusBadge::Unavailable: return {0.46F, 0.18F, 0.70F};
             case DenseStatusBadge::Favorite: return {0.62F, 0.38F, 0.00F};
             case DenseStatusBadge::Tracked: return {0.00F, 0.40F, 0.62F};
             case DenseStatusBadge::Follower: return {0.70F, 0.08F, 0.50F};
+            case DenseStatusBadge::PotentialFollower: return {0.50F, 0.16F, 0.58F};
             case DenseStatusBadge::Generic: return {0.55F, 0.36F, 0.00F};
             case DenseStatusBadge::Alive: return {0.00F, 0.46F, 0.12F};
             case DenseStatusBadge::Dead: return {0.72F, 0.00F, 0.00F};
@@ -983,6 +1032,8 @@ namespace whereabouts::ui
             case DenseStatusBadge::Disabled: return {0.68F, 0.27F, 0.00F};
             case DenseStatusBadge::Loaded: return {0.14F, 0.30F, 0.72F};
             case DenseStatusBadge::Unloaded: return {0.34F, 0.39F, 0.44F};
+            case DenseStatusBadge::Essential: return {0.55F, 0.40F, 0.00F};
+            case DenseStatusBadge::Protected: return {0.00F, 0.40F, 0.55F};
             case DenseStatusBadge::Missing: return {0.46F, 0.18F, 0.70F};
             }
         }
@@ -1074,9 +1125,11 @@ namespace whereabouts::ui
     [[nodiscard]] constexpr char DenseStatusBadgeLetter(DenseStatusBadge badge) noexcept
     {
         switch (badge) {
+        case DenseStatusBadge::Unavailable: return '?';
         case DenseStatusBadge::Favorite: return 'V';
         case DenseStatusBadge::Tracked: return 'T';
         case DenseStatusBadge::Follower: return 'F';
+        case DenseStatusBadge::PotentialFollower: return 'P';
         case DenseStatusBadge::Generic: return 'G';
         case DenseStatusBadge::Alive: return 'A';
         case DenseStatusBadge::Dead: return 'D';
@@ -1084,6 +1137,8 @@ namespace whereabouts::ui
         case DenseStatusBadge::Disabled: return 'X';
         case DenseStatusBadge::Loaded: return 'L';
         case DenseStatusBadge::Unloaded: return 'U';
+        case DenseStatusBadge::Essential: return 'S';
+        case DenseStatusBadge::Protected: return 'R';
         case DenseStatusBadge::Missing: return 'M';
         }
         return '?';
@@ -1093,9 +1148,11 @@ namespace whereabouts::ui
         DenseStatusBadge badge) noexcept
     {
         switch (badge) {
+        case DenseStatusBadge::Unavailable: return "Unavailable";
         case DenseStatusBadge::Favorite: return "Favorite";
         case DenseStatusBadge::Tracked: return "Tracked";
         case DenseStatusBadge::Follower: return "Follower";
+        case DenseStatusBadge::PotentialFollower: return "Potential Follower";
         case DenseStatusBadge::Generic: return "Generic NPC";
         case DenseStatusBadge::Alive: return "Alive";
         case DenseStatusBadge::Dead: return "Dead; body present";
@@ -1103,6 +1160,8 @@ namespace whereabouts::ui
         case DenseStatusBadge::Disabled: return "Disabled";
         case DenseStatusBadge::Loaded: return "Loaded";
         case DenseStatusBadge::Unloaded: return "Unloaded";
+        case DenseStatusBadge::Essential: return "Essential";
+        case DenseStatusBadge::Protected: return "Protected";
         case DenseStatusBadge::Missing: return "Body no longer available";
         }
         return "Unknown status";
@@ -1113,14 +1172,11 @@ namespace whereabouts::ui
         bool favorite = false)
     {
         std::vector<DenseStatusBadge> badges;
-        badges.reserve(9);
-        if (favorite) badges.push_back(DenseStatusBadge::Favorite);
-        if (npc.tracked) badges.push_back(DenseStatusBadge::Tracked);
-        if (npc.teammate) badges.push_back(DenseStatusBadge::Follower);
-        if (!npc.IsUniqueBase()) badges.push_back(DenseStatusBadge::Generic);
-        badges.push_back(npc.alive ? DenseStatusBadge::Alive : DenseStatusBadge::Dead);
-        badges.push_back(npc.enabled ? DenseStatusBadge::Enabled : DenseStatusBadge::Disabled);
-        badges.push_back(npc.loaded ? DenseStatusBadge::Loaded : DenseStatusBadge::Unloaded);
+        const auto labels = StatusTagLabels(npc, favorite);
+        badges.reserve(labels.size());
+        for (const auto& label : labels) {
+            if (const auto badge = DenseStatusBadgeForTag(label)) badges.push_back(*badge);
+        }
         return badges;
     }
 

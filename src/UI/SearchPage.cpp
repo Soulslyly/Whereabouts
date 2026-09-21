@@ -11,6 +11,7 @@
 #include <algorithm>
 #include <array>
 #include <format>
+#include <limits>
 #include <optional>
 
 namespace whereabouts::ui
@@ -413,10 +414,25 @@ namespace whereabouts::ui
                         specs->SpecsDirty = false;
                     }
                     const bool showSecondary = ShowsSecondaryResultMetadata(resultDensity);
-                    const float rowHeight = ImGuiMCP::GetTextLineHeightWithSpacing() *
-                        (showSecondary ? 2.0F : 1.0F);
+                    const float rowHeight = (std::max)(
+                        ImGuiMCP::GetTextLineHeightWithSpacing() *
+                            (showSecondary ? 2.0F : 1.0F),
+                        ImGuiMCP::GetFrameHeightWithSpacing());
                     const auto favoriteEntries = savedNpcs_.Favorites();
-                    for (const auto& npc : results_) {
+                    auto* clipper = ImGuiMCP::ImGuiListClipperManager::Create();
+                    if (clipper) {
+                        ImGuiMCP::ImGuiListClipperManager::Begin(
+                            clipper,
+                            static_cast<int>((std::min)(
+                                results_.size(),
+                                static_cast<std::size_t>(
+                                    (std::numeric_limits<int>::max)()))),
+                            rowHeight);
+                        while (ImGuiMCP::ImGuiListClipperManager::Step(clipper)) {
+                            for (int resultIndex = clipper->DisplayStart;
+                                 resultIndex < clipper->DisplayEnd;
+                                 ++resultIndex) {
+                        const auto& npc = results_[static_cast<std::size_t>(resultIndex)];
                         ImGuiMCP::PushID(static_cast<int>(npc.ReferenceRuntimeID()));
                         ImGuiMCP::TableNextRow(0, rowHeight);
                         RowInteraction interaction;
@@ -472,7 +488,7 @@ namespace whereabouts::ui
                         static_cast<void>(ImGuiMCP::TableSetColumnIndex(2));
                         const auto locationHit = BeginRowInteractionCell("##searchLocationCell", rowHeight);
                         interaction.Include(locationHit.hovered, locationHit.activated);
-                        const auto location = LocalizedPrimarySpatialLabel(npc.spatial);
+                        const auto location = NpcLocationLabel(npc);
                         const auto locationWidth = ImGuiMCP::GetContentRegionAvail().x;
                         ImGuiMCP::TextUnformatted(location.c_str());
                         const auto worldspace = SecondaryWorldspaceLabel(npc.spatial);
@@ -497,10 +513,15 @@ namespace whereabouts::ui
                         ApplyUnifiedRowBackground(interaction, selected);
                         HandleNpcRowActivation(interaction, npc, TargetSource::Search);
                         ImGuiMCP::PopID();
+                            }
+                        }
+                        ImGuiMCP::ImGuiListClipperManager::End(clipper);
+                        ImGuiMCP::ImGuiListClipperManager::Destroy(clipper);
                     }
                     ImGuiMCP::EndTable();
                 }
                 if (!locationsFirst) RenderSearchLocationResults();
+                ImGuiMCP::Dummy({0.0F, ImGuiMCP::GetTextLineHeightWithSpacing()});
                 if (pushedColors > 0) ImGuiMCP::PopStyleColor(pushedColors);
             }
             ImGuiMCP::EndChild();

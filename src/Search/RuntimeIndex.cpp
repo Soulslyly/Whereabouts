@@ -6,11 +6,13 @@
 #include "Core/SnapshotState.h"
 #include "Core/TextFold.h"
 #include "Search/EditorIdLookup.h"
+#include "Search/PluginStructure.h"
 #include "Search/RuntimeIndex.h"
 #include "Targets/TargetSelection.h"
 
 #include <chrono>
 #include <expected>
+#include <limits>
 #include <string_view>
 #include <mutex>
 #include <unordered_map>
@@ -23,15 +25,39 @@
 
 namespace whereabouts
 {
+    std::vector<PlacedNpcRecordCandidate> SelectWinningPlacedNpcRecords(
+        std::span<const PlacedNpcRecordCandidate> candidates)
+    {
+        std::unordered_map<std::uint32_t, PlacedNpcRecordCandidate> winners;
+        for (const auto& candidate : candidates) {
+            if (candidate.referenceRuntimeFormID == 0) continue;
+            if (!candidate.deleted &&
+                (candidate.baseRuntimeFormID == 0 || !candidate.referenceStable.IsPersistable())) {
+                continue;
+            }
+            winners.insert_or_assign(candidate.referenceRuntimeFormID, candidate);
+        }
+
+        std::vector<PlacedNpcRecordCandidate> selected;
+        selected.reserve(winners.size());
+        for (auto& [formID, candidate] : winners) {
+            if (!candidate.deleted) selected.push_back(std::move(candidate));
+        }
+        std::ranges::sort(selected, {}, &PlacedNpcRecordCandidate::referenceRuntimeFormID);
+        return selected;
+    }
+
     std::vector<std::uint32_t> MergeActorDiscoveryCandidateIds(
         std::span<const std::uint32_t> actorArrayIds,
         std::span<const std::uint32_t> globalRegistryIds,
-        std::span<const std::uint32_t> cellPersistentIds)
+        std::span<const std::uint32_t> cellPersistentIds,
+        std::span<const std::uint32_t> cellActiveIds)
     {
         std::vector<std::uint32_t> merged;
         std::unordered_set<std::uint32_t> seen;
         merged.reserve(
-            actorArrayIds.size() + globalRegistryIds.size() + cellPersistentIds.size());
+            actorArrayIds.size() + globalRegistryIds.size() + cellPersistentIds.size() +
+            cellActiveIds.size());
         const auto append = [&](std::span<const std::uint32_t> source) {
             for (const auto formID : source) {
                 if (formID != 0 && seen.insert(formID).second) merged.push_back(formID);
@@ -40,11 +66,226 @@ namespace whereabouts
         append(actorArrayIds);
         append(globalRegistryIds);
         append(cellPersistentIds);
+        append(cellActiveIds);
         return merged;
     }
 
     namespace
     {
+        constexpr std::uint32_t kDeletedRecordFlag = 1U << 5;
+        constexpr std::uint32_t kNameSubrecord = 0x454D414E;  // NAME
+
+        [[nodiscard]] const RE::TESFile* RawFormOwner(
+            const RE::TESFile& source,
+            std::uint32_t rawFormID) noexcept
+        {
+            const auto masterIndex = rawFormID >> 24;
+            if (masterIndex < source.masterCount && source.masterPtrs) {
+                if (const auto* owner = source.masterPtrs[masterIndex]) return owner;
+            }
+            return std::addressof(source);
+        }
+
+        [[nodiscard]] FormIdentity StableIdentityFromRawFormID(
+            const RE::TESFile& source,
+            std::uint32_t rawFormID,
+            std::uint32_t runtimeFormID)
+        {
+            const auto* owner = RawFormOwner(source, rawFormID);
+            return owner ? FormIdentity::FromRuntimeFormID(
+                std::string(owner->GetFilename()), runtimeFormID, owner->IsLight()) : FormIdentity{};
+        }
+
+        bool ScanPlacedNpcRecords(
+            RE::TESFile& source,
+            std::vector<PlacedNpcRecordCandidate>& candidates,
+            std::size_t& structureFiles,
+            std::size_t& structureOpenFailures,
+            std::size_t& structureSeekFailures,
+            std::size_t& structureReadFailures,
+            std::size_t& structureParserFailures,
+            std::size_t& mappedReferences)
+        {
+            ++structureFiles;
+            std::unordered_map<std::uint32_t, std::uint32_t> cellParents;
+            RE::BSResourceNiBinaryStream structureStream{std::string(source.GetFilename())};
+            if (!structureStream.good() || !structureStream.stream) {
+                ++structureOpenFailures;
+            } else {
+                enum class StreamFailure
+                {
+                    None,
+                    Seek,
+                    Read
+                };
+                StreamFailure streamFailure = StreamFailure::None;
+                const auto parents = ScanPlacedRecordCellParents(
+                    structureStream.stream->totalSize,
+                    [&structureStream, &streamFailure](
+                        std::uint64_t offset,
+                        std::span<std::byte> output) {
+                        std::uint64_t sought = 0;
+                        if (structureStream.stream->DoSeek(
+                                offset, RE::BSResource::SeekMode::kSet, sought) !=
+                                RE::BSResource::ErrorCode::kNone || sought != offset) {
+                            streamFailure = StreamFailure::Seek;
+                            return false;
+                        }
+                        std::uint64_t bytesRead = 0;
+                        if (structureStream.stream->DoRead(
+                                output.data(), output.size(), bytesRead) !=
+                                RE::BSResource::ErrorCode::kNone || bytesRead != output.size()) {
+                            streamFailure = StreamFailure::Read;
+                            return false;
+                        }
+                        return true;
+                    });
+                if (parents) {
+                    mappedReferences += parents->size();
+                    cellParents.reserve(parents->size());
+                    for (const auto& parent : *parents) {
+                        cellParents.insert_or_assign(
+                            parent.rawReferenceFormID, parent.rawCellFormID);
+                    }
+                } else if (streamFailure == StreamFailure::Seek) {
+                    ++structureSeekFailures;
+                } else if (streamFailure == StreamFailure::Read) {
+                    ++structureReadFailures;
+                } else {
+                    ++structureParserFailures;
+                }
+            }
+
+            auto* reader = source.Duplicate();
+            if (!reader) return false;
+            struct ReaderCloser
+            {
+                RE::TESFile* value;
+                ~ReaderCloser() { if (value) static_cast<void>(value->CloseTES(true)); }
+            } closer{reader};
+            if (!reader->OpenTES(RE::NiFile::OpenMode::kReadOnly, false)) {
+                return false;
+            }
+
+            while (reader->SeekNextForm(false)) {
+                if (reader->GetFormType() != RE::FormType::ActorCharacter) continue;
+
+                const auto rawReferenceFormID = reader->currentform.formID;
+                const auto referenceRuntimeFormID = source.GetRuntimeFormID(rawReferenceFormID);
+                if (referenceRuntimeFormID == 0 || referenceRuntimeFormID == 0x14) continue;
+
+                PlacedNpcRecordCandidate candidate;
+                candidate.referenceRuntimeFormID = referenceRuntimeFormID;
+                candidate.referenceStable = StableIdentityFromRawFormID(
+                    source, rawReferenceFormID, referenceRuntimeFormID);
+                candidate.deleted = (reader->currentform.flags & kDeletedRecordFlag) != 0;
+                if (!candidate.deleted) {
+                    if (const auto parent = cellParents.find(rawReferenceFormID);
+                        parent != cellParents.end()) {
+                        const auto cellRuntimeFormID = source.GetRuntimeFormID(parent->second);
+                        const auto identity = StableIdentityFromRawFormID(
+                            source, parent->second, cellRuntimeFormID);
+                        if (cellRuntimeFormID != 0 && identity.IsPersistable()) {
+                            candidate.recordedCell = RecordedCellSnapshot{
+                                .identity = identity,
+                                .runtimeFormID = cellRuntimeFormID};
+                        }
+                    }
+                    std::uint32_t rawBaseFormID = 0;
+                    if (!reader->SeekNextSubrecordType(kNameSubrecord) ||
+                        reader->GetCurrentSubRecordSize() < sizeof(rawBaseFormID) ||
+                        !reader->ReadData(std::addressof(rawBaseFormID), sizeof(rawBaseFormID))) {
+                        continue;
+                    }
+                    candidate.baseRuntimeFormID = source.GetRuntimeFormID(rawBaseFormID);
+                }
+                candidates.push_back(std::move(candidate));
+            }
+            return true;
+        }
+
+        std::vector<PlacedNpcRecordCandidate> CapturePlacedNpcRecords(
+            RE::TESDataHandler& dataHandler)
+        {
+            static std::mutex fileScanMutex;
+            std::scoped_lock lock(fileScanMutex);
+
+            std::vector<PlacedNpcRecordCandidate> candidates;
+            std::size_t scannedFiles = 0;
+            std::size_t failedFiles = 0;
+            std::size_t structureFiles = 0;
+            std::size_t structureOpenFailures = 0;
+            std::size_t structureSeekFailures = 0;
+            std::size_t structureReadFailures = 0;
+            std::size_t structureParserFailures = 0;
+            std::size_t mappedReferences = 0;
+            const auto scan = [&](RE::TESFile* file) {
+                if (!file) return;
+                if (ScanPlacedNpcRecords(
+                        *file,
+                        candidates,
+                        structureFiles,
+                        structureOpenFailures,
+                        structureSeekFailures,
+                        structureReadFailures,
+                        structureParserFailures,
+                        mappedReferences)) ++scannedFiles;
+                else ++failedFiles;
+            };
+
+            std::unordered_set<RE::TESFile*> loadedFiles;
+            auto** regular = dataHandler.GetLoadedMods();
+            for (std::uint16_t i = 0; regular && i < dataHandler.GetLoadedModCount(); ++i) {
+                if (regular[i]) loadedFiles.insert(regular[i]);
+            }
+            auto** light = dataHandler.GetLoadedLightMods();
+            for (std::uint16_t i = 0; light && i < dataHandler.GetLoadedLightModCount(); ++i) {
+                if (light[i]) loadedFiles.insert(light[i]);
+            }
+
+            // TESDataHandler::files retains the mixed full/light load order that
+            // decides record winners. The compiled arrays above are only used as
+            // an active-file allowlist because each array loses that interleaving.
+            std::size_t orderedFiles = 0;
+            for (auto* file : dataHandler.files) {
+                if (file && loadedFiles.erase(file) != 0) {
+                    scan(file);
+                    ++orderedFiles;
+                }
+            }
+            // Fail closed on an incomplete file-list view without dropping an
+            // otherwise active plugin from discovery.
+            if (!loadedFiles.empty()) {
+                for (std::uint16_t i = 0; regular && i < dataHandler.GetLoadedModCount(); ++i) {
+                    if (regular[i] && loadedFiles.erase(regular[i]) != 0) scan(regular[i]);
+                }
+                for (std::uint16_t i = 0; light && i < dataHandler.GetLoadedLightModCount(); ++i) {
+                    if (light[i] && loadedFiles.erase(light[i]) != 0) scan(light[i]);
+                }
+            }
+
+            auto winning = SelectWinningPlacedNpcRecords(candidates);
+            const auto winningWithCells = static_cast<std::size_t>(std::ranges::count_if(
+                winning, [](const auto& candidate) { return candidate.recordedCell.has_value(); }));
+            logger::info(
+                "Placed NPC record discovery: ordered files {}, files {}, failed {}, records {}, winning {}",
+                orderedFiles,
+                scannedFiles,
+                failedFiles,
+                candidates.size(),
+                winning.size());
+            logger::info(
+                "Placed record cell hierarchy: files {}, resource open {}, seek {}, read {}, parser {}, mapped references {}, winning rows with cells {}",
+                structureFiles,
+                structureOpenFailures,
+                structureSeekFailures,
+                structureReadFailures,
+                structureParserFailures,
+                mappedReferences,
+                winningWithCells);
+            return winning;
+        }
+
         bool IsSearchableActor(const RE::Actor* actor)
         {
             const auto* base = actor ? actor->GetActorBase() : nullptr;
@@ -472,6 +713,50 @@ namespace whereabouts
             return snapshot;
         }
 
+        [[nodiscard]] std::optional<NpcSnapshot> CapturePlacedNpcSnapshot(
+            RuntimeIndex& index,
+            const PlacedNpcRecordCandidate& record,
+            const EditorIdLookup& editorIds,
+            RecordProjectionCache& recordProjectionCache)
+        {
+            auto* base = RE::TESForm::LookupByID<RE::TESNPC>(record.baseRuntimeFormID);
+            if (!base || base->IsDeleted()) return std::nullopt;
+            const auto displayName = CopyDisplayName(base);
+            if (displayName.empty()) return std::nullopt;
+
+            NpcSnapshot snapshot;
+            snapshot.identity.reference.runtimeFormID = record.referenceRuntimeFormID;
+            snapshot.identity.reference.stable = record.referenceStable;
+            snapshot.identity.base.runtimeFormID = base->GetFormID();
+            snapshot.identity.uniqueBase = base->IsUnique();
+            snapshot.displayName = displayName;
+            if (const auto identity = TryGetFormIdentity(base)) {
+                snapshot.identity.base.stable = *identity;
+            }
+            if (!snapshot.identity.IsPersistable()) return std::nullopt;
+            snapshot.referenceEditorID = editorIds.Find(record.referenceRuntimeFormID);
+            snapshot.baseEditorID = editorIds.Find(base->GetFormID());
+            snapshot.recordProjection = GetOrCreateRecordProjection(
+                recordProjectionCache,
+                base->GetFormID(),
+                [&] { return CaptureRecordProjection(base, editorIds); });
+            if (record.recordedCell) {
+                snapshot.recordedCell = *record.recordedCell;
+                auto* cell = RE::TESForm::LookupByID<RE::TESObjectCELL>(
+                    record.recordedCell->runtimeFormID);
+                const auto identity = TryGetFormIdentity(cell);
+                if (cell && identity && *identity == record.recordedCell->identity) {
+                    snapshot.recordedCell->displayName = CopyDisplayName(cell);
+                    snapshot.recordedCell->editorID = editorIds.Find(cell->GetFormID());
+                    snapshot.recordedCell->interior = cell->IsInteriorCell();
+                    snapshot.recordedCell->worldspaceName =
+                        CopyDisplayName(cell->GetRuntimeData().worldSpace);
+                }
+            }
+            index.RefreshDynamic(snapshot);
+            return snapshot;
+        }
+
         [[nodiscard]] std::optional<NpcSnapshot> CaptureRuntimeSnapshot(
             RuntimeIndex& index,
             std::uint32_t runtimeFormID)
@@ -489,6 +774,7 @@ namespace whereabouts
             if (!dataHandler) return std::unexpected(IndexFailure::FormsUnavailable);
 
             const auto editorIds = CaptureEditorIds();
+            const auto placedRecords = CapturePlacedNpcRecords(*dataHandler);
             std::unordered_map<std::uint32_t, RE::NiPointer<RE::Actor>> actorPointers;
 
             std::vector<std::uint32_t> actorArrayIds;
@@ -520,6 +806,7 @@ namespace whereabouts
             }
 
             std::vector<std::uint32_t> cellPersistentIds;
+            std::vector<std::uint32_t> cellActiveIds;
             const auto& cells = dataHandler->GetFormArray<RE::TESObjectCELL>();
             for (auto* cell : cells) {
                 if (!cell) continue;
@@ -536,17 +823,51 @@ namespace whereabouts
                         }
                     }
                 }
+                for (const auto& reference : runtimeData.references) {
+                    if (reference &&
+                        reference->GetFormType() == RE::FormType::ActorCharacter) {
+                        const auto formID = reference->GetFormID();
+                        cellActiveIds.push_back(formID);
+                        if (auto* actor = reference->As<RE::Actor>()) {
+                            actorPointers.try_emplace(
+                                formID, RE::NiPointer<RE::Actor>{actor});
+                        }
+                    }
+                }
             }
 
             const auto candidateIDs = MergeActorDiscoveryCandidateIds(
                 actorArrayIds,
                 globalRegistryIds,
-                cellPersistentIds);
+                cellPersistentIds,
+                cellActiveIds);
 
             std::vector<NpcSnapshot> rebuilt;
-            rebuilt.reserve(candidateIDs.size());
+            rebuilt.reserve(placedRecords.size() + candidateIDs.size());
             RecordProjectionCache recordProjectionCache;
+            std::unordered_set<std::uint32_t> placedReferenceIDs;
+            placedReferenceIDs.reserve(placedRecords.size());
+            std::size_t recordBackedRows = 0;
+            for (const auto& record : placedRecords) {
+                const auto found = actorPointers.find(record.referenceRuntimeFormID);
+                auto* actor = found != actorPointers.end() ? found->second.get() :
+                    RE::TESForm::LookupByID<RE::Actor>(record.referenceRuntimeFormID);
+                auto snapshot = CaptureActorSnapshot(
+                    index, actor, editorIds, recordProjectionCache);
+                bool recordBacked = false;
+                if (!snapshot) {
+                    snapshot = CapturePlacedNpcSnapshot(
+                        index, record, editorIds, recordProjectionCache);
+                    recordBacked = snapshot.has_value();
+                }
+                if (snapshot) {
+                    placedReferenceIDs.insert(record.referenceRuntimeFormID);
+                    if (recordBacked) ++recordBackedRows;
+                    rebuilt.push_back(std::move(*snapshot));
+                }
+            }
             for (const auto formID : candidateIDs) {
+                if (placedReferenceIDs.contains(formID)) continue;
                 const auto found = actorPointers.find(formID);
                 auto* actor = found != actorPointers.end() ?
                     found->second.get() : RE::TESForm::LookupByID<RE::Actor>(formID);
@@ -556,10 +877,13 @@ namespace whereabouts
                 }
             }
             logger::info(
-                "Actor discovery: actor array {}, global registry {}, cell-persistent {}, unique {}, indexed {}",
+                "Actor discovery: placed {}, record-only {}, actor array {}, global registry {}, cell-persistent {}, cell-active {}, live unique {}, indexed {}",
+                placedRecords.size(),
+                recordBackedRows,
                 actorArrayIds.size(),
                 globalRegistryIds.size(),
                 cellPersistentIds.size(),
+                cellActiveIds.size(),
                 candidateIDs.size(),
                 rebuilt.size());
             return rebuilt;

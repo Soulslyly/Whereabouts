@@ -271,6 +271,15 @@ namespace whereabouts
             if (filters.loaded && npc.loaded != *filters.loaded) {
                 return false;
             }
+            if (!MatchesKnownBoolean(
+                    npc.available, true, filters.availability)) {
+                return false;
+            }
+            const bool hasRecordedCell = npc.recordedCell && npc.recordedCell->Known();
+            if (!MatchesKnownBoolean(
+                    hasRecordedCell, true, filters.recordedCell)) {
+                return false;
+            }
             if (filters.location) {
                 if (filters.locationExact) {
                     const auto matchesExactLocation =

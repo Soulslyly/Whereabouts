@@ -85,7 +85,7 @@ namespace whereabouts::ui
                 RowInteraction interaction{
                     ImGuiMCP::IsItemHovered(),
                     activated};
-                const auto location = LocalizedPrimarySpatialLabel(npc.spatial);
+                const auto location = NpcLocationLabel(npc);
                 const auto tooltip = std::format(
                     "{}\n{:08X}\n{}\n{}",
                     npc.displayName,

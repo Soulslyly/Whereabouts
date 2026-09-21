@@ -193,7 +193,7 @@ namespace whereabouts::ui
                     static_cast<void>(ImGuiMCP::TableSetColumnIndex(2));
                     const auto locationHit = BeginRowInteractionCell("##trackedLocationCell", rowHeight);
                     interaction.Include(locationHit.hovered, locationHit.activated);
-                    const auto location = LocalizedPrimarySpatialLabel(npc.spatial);
+                    const auto location = NpcLocationLabel(npc);
                     const auto locationWidth = ImGuiMCP::GetContentRegionAvail().x;
                     ImGuiMCP::TextUnformatted(location.c_str());
                     const auto worldspace = SecondaryWorldspaceLabel(npc.spatial);

@@ -94,6 +94,9 @@ namespace whereabouts::ui
         if (filters.trackedOnly) addCommon(TranslateText("Tracked only"), TranslateOwned("Yes"));
         if (filters.sameLocationOnly) addCommon(TranslateText("Same location"), TranslateOwned("Yes"));
         if (filters.includeGeneric) addCommon(TranslateText("Include Generic NPCs"), TranslateOwned("Yes"));
+        if (filters.availability != KnownBooleanFilter::Any) addCommon(
+            TranslateText("Availability"), TranslateOwned(
+                filters.availability == KnownBooleanFilter::Yes ? "Available" : "Unavailable"));
         const auto commonCount = ActiveCommonSearchFilterCount(filters);
         const auto commonBase = TranslateOwned("Filters and sorting");
         const auto commonCountHeading = commonCount == 0 ? commonBase :
@@ -164,6 +167,8 @@ namespace whereabouts::ui
                 TranslateText("Locations only")};
             const std::array stateNames{
                 TranslateText("Any"), TranslateText("Yes"), TranslateText("No")};
+            const std::array availabilityNames{
+                TranslateText("Any"), TranslateText("Available"), TranslateText("Unavailable")};
             const std::array sortNames{
                 TranslateText("Name"), TranslateText("Plugin"), TranslateText("Level"),
                 TranslateText("NPC location"), TranslateText("Loaded"), TranslateText("Distance"),
@@ -388,6 +393,25 @@ namespace whereabouts::ui
                         "Shows non-unique actors. Commands use the exact reference FormID."));
                     break;
                 }
+                case FilterControl::Availability: {
+                    const auto preview = TriStateFilterPreview(
+                        densityLabel(commonDensity, "Availability", "Availability", "Avail."),
+                        availabilityNames[std::clamp(availabilityFilter_, 0, 2)]);
+                    ImGuiMCP::SetNextItemWidth(-1.0F);
+                    if (ImGuiMCP::BeginCombo("##WhereaboutsAvailabilityFilter", preview.c_str())) {
+                        for (int index = 0; index < 3; ++index) {
+                            if (ImGuiMCP::Selectable(
+                                    availabilityNames[index], availabilityFilter_ == index)) {
+                                availabilityFilter_ = index;
+                                searchOptionsChanged = true;
+                            }
+                        }
+                        ImGuiMCP::EndCombo();
+                    }
+                    DelayedTooltip(TranslateText(
+                        "Available NPCs currently have a resolved actor reference. Unavailable NPCs are record-only until Skyrim instantiates their reference."));
+                    break;
+                }
                 case FilterControl::Sort: {
                     ImGuiMCP::SetNextItemWidth(-1.0F);
                     if (ImGuiMCP::BeginCombo(
@@ -485,6 +509,9 @@ namespace whereabouts::ui
         }
         if (filters.essential != KnownBooleanFilter::Any) addKnown(TranslateText("Essential"), filters.essential);
         if (filters.protectedActor != KnownBooleanFilter::Any) addKnown(TranslateText("Protected"), filters.protectedActor);
+        if (filters.recordedCell != KnownBooleanFilter::Any) addAdvanced(
+            TranslateText("Recorded Cell"), filters.recordedCell == KnownBooleanFilter::Yes ?
+                TranslateText("Known") : TranslateText("Unknown"));
         if (filters.spatialKind) addAdvanced(TranslateText("Area"),
             *filters.spatialKind == SpatialKind::Interior ? TranslateText("Interior") :
             *filters.spatialKind == SpatialKind::Exterior ? TranslateText("Exterior") : TranslateText("Unknown"));
@@ -554,6 +581,8 @@ namespace whereabouts::ui
             TranslateText("Female"), TranslateText("Unknown")};
         const std::array knownStates{TranslateText("Any"), TranslateText("Yes"),
             TranslateText("No"), TranslateText("Unknown")};
+        const std::array recordedCellStates{TranslateText("Any"), TranslateText("Known"),
+            TranslateText("Unknown")};
         const std::array areaNames{TranslateText("Any"), TranslateText("Interior"),
             TranslateText("Exterior"), TranslateText("Unknown")};
         const std::array freshnessNames{TranslateText("Any"), TranslateText("Current"),
@@ -735,6 +764,25 @@ namespace whereabouts::ui
                 searchOptionsChanged |= knownState("##WhereaboutsProtectedFilter", TranslateText("Protected"), protectedFilter_);
                 DelayedTooltip(TranslateText("No means the flag is known to be absent."));
                 break;
+            case FilterControl::RecordedCell: {
+                const auto preview = TriStateFilterPreview(
+                    densityLabel(advancedDensity, "Recorded Cell", "Recorded Cell", "Cell"),
+                    recordedCellStates[std::clamp(recordedCellFilter_, 0, 2)]);
+                ImGuiMCP::SetNextItemWidth(-1.0F);
+                if (ImGuiMCP::BeginCombo("##WhereaboutsRecordedCellFilter", preview.c_str())) {
+                    for (int index = 0; index < 3; ++index) {
+                        if (ImGuiMCP::Selectable(
+                                recordedCellStates[index], recordedCellFilter_ == index)) {
+                            recordedCellFilter_ = index;
+                            searchOptionsChanged = true;
+                        }
+                    }
+                    ImGuiMCP::EndCombo();
+                }
+                DelayedTooltip(TranslateText(
+                    "Known means the winning placed NPC record identifies an exact owning cell."));
+                break;
+            }
             case FilterControl::Area: {
                 const auto preview = TriStateFilterPreview(TranslateText("Area"), areaNames[std::clamp(spatialKindFilter_, 0, 3)]);
                 ImGuiMCP::SetNextItemWidth(-1.0F);

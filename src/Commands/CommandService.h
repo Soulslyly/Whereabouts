@@ -2,6 +2,7 @@
 
 #include "Commands/CommandPolicy.h"
 #include "Commands/CommandActions.h"
+#include "Commands/CellTravel.h"
 #include "Lifecycle/RequestSerialGate.h"
 #include "Lifecycle/OperationEpoch.h"
 #include "Lifecycle/OperationQueue.h"
@@ -49,6 +50,15 @@ namespace whereabouts
         [[nodiscard]] std::optional<ActorFlagPair> OriginalFlags(
             std::uint32_t ownerRuntimeFormID,
             OperationEpochToken token) const noexcept;
+        [[nodiscard]] bool HasReturnPoint(OperationEpochToken token) const noexcept;
+        [[nodiscard]] bool IsRecordedCellResolvable(
+            const RecordedCellSnapshot& cell) const noexcept;
+        [[nodiscard]] std::expected<void, std::string> TravelToRecordedCell(
+            const RecordedCellSnapshot& destination,
+            std::uint32_t selectedRuntimeFormID,
+            OperationEpochToken token);
+        [[nodiscard]] std::expected<void, std::string> ReturnToPreviousLocation(
+            OperationEpochToken token);
         void RequestPendingConsoleSelectionAttempt() noexcept;
         [[nodiscard]] bool IsEnabledStateRequestCurrent(std::uint64_t requestSerial) const noexcept;
 
@@ -100,6 +110,9 @@ namespace whereabouts
             std::uint32_t selectedRuntimeFormID,
             std::string_view command,
             OperationEpochToken token);
+        void QueueRecordedCellRefresh(
+            std::uint32_t runtimeFormID,
+            OperationEpochToken token) noexcept;
 
         RuntimeIndex& index_;
         TrackingService& tracking_;
@@ -120,6 +133,7 @@ namespace whereabouts
         std::atomic_bool pendingConsoleActive_{false};
         bool consoleEventsRegistered_{false};
         OriginalActorFlagStore originalActorFlags_;
+        ReturnPointStore returnPoint_;
         RE::Script* customCommandScript_{nullptr};
     };
 }

@@ -1,5 +1,54 @@
 # Changelog
 
+## 2.1.0 - Search result scroll-end correction
+
+- Keep the final Search NPC row fully visible at the bottom of the results scroller.
+- Preserve visible-row clipping and add only scrollable end clearance, with no permanently reserved result space.
+- Preserve 2.0.9 behavior outside this layout boundary.
+
+## 2.0.9 - Skyrim VFS recorded-cell stream correction
+
+- Replace the runtime-contradicted TES file backing-stream adapter with Skyrim's resource/VFS stream.
+- Distinguish resource open, seek, read, and structural parser failures in aggregate diagnostics.
+- Preserve event-driven refresh behavior and all unrelated 2.0.8 functionality.
+
+## 2.0.8 - Event-driven availability and recorded-cell stream correction
+
+- Replace recurring unavailable-NPC polling with one refresh on menu open, selection, and completed movement.
+- Read plugin group structure from the duplicate's raw backing stream instead of the stateful TES record reader.
+- Add aggregate recorded-cell diagnostics so runtime success and failure counts are visible without log spam.
+
+## 2.0.7 - Recorded-cell and menu-performance correction
+
+- Correct recorded owning-cell capture for never-materialized placed NPCs.
+- Replace unconditional one-second unavailable-NPC refresh work with a cheap materialization probe and bounded backoff.
+- Clip large Search result tables so only visible rows are submitted to the menu framework.
+
+## 2.0.6 - Contextual recorded-cell travel
+
+- Capture exact recorded-cell identity for record-only NPCs and expose availability plus known/unknown recorded-cell filters.
+- Replace Travel with Travel to Cell only when an unavailable NPC's recorded cell resolves, and add a session-only Return action after successful travel.
+- Add recorded-cell metadata and adjacent copy controls to NPC Details, then refresh only the selected target after travel.
+- Preserve saves, public APIs, settings compatibility, ESP, Papyrus, SMF/AMF support, and separate Standard/VR builds.
+
+## 2.0.5 - Record-only NPC interaction correction
+
+- Keep record-only NPC rows selected while their placed references are not instantiated.
+- Match Search result status badges to Selected NPC, explain unavailable references, and optionally hide them.
+- Refresh a selected unavailable NPC in place when Skyrim loads its reference, without reopening the menu.
+
+## 2.0.4 - Never-loaded placed NPC discovery correction
+
+- Build the initial NPC catalog from winning placed `ACHR` records as well as materialized live actors.
+- Keep never-visited unique NPCs searchable from a new game, then overlay live state after Skyrim materializes their references.
+- Preserve save data, filters, commands, settings, ESP, Papyrus, SMF/AMF support, and the Standard/VR targets.
+
+## 2.0.3 - Loaded-cell actor discovery correction
+
+- Include actors held in each loaded cell's active-reference set in addition to the existing Actor array, global registry, and persistent-object list.
+- Correct the Skyrim 1.5.97 case where an actor could be visible and targetable yet remain absent from Search until acquired through the crosshair.
+- Preserve save data, filters, commands, settings, ESP, Papyrus, SMF/AMF support, and the Standard/VR targets.
+
 ## 2.0.2 - Runtime actor discovery correction
 
 - Correct the runtime-confirmed 2.0.1 regression where Skyrim's actor form-array bucket produced an empty NPC index and manual refresh repeated the same result.

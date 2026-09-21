@@ -172,16 +172,23 @@ namespace whereabouts::ui
     {
         frameworkOpen_ = false;
         ObserveLocationTravelClose(false);
+        ObserveContextualMovementClose(false);
         if (!locationTravelArmed_) pendingLocationTravel_.reset();
+        if (!contextualMovementArmed_) {
+            pendingContextualMovement_.reset();
+            pendingRecordedCell_.reset();
+            pendingContextualNpcRuntimeID_ = 0;
+        }
     }
 
     void Menu::OnFrameworkAfterRender()
     {
-        if (!locationTravelArmed_) return;
+        if (!locationTravelArmed_ && !contextualMovementArmed_) return;
         const auto* mainWindow = SKSEMenuFramework::GetMainWindow();
         if (mainWindow && !mainWindow->IsOpen) {
             frameworkOpen_ = false;
             ObserveLocationTravelClose(false);
+            ObserveContextualMovementClose(false);
         }
     }
 
@@ -237,6 +244,8 @@ namespace whereabouts::ui
         };
         filters.essential = knownBooleanFilter(essentialFilter_);
         filters.protectedActor = knownBooleanFilter(protectedFilter_);
+        filters.availability = knownBooleanFilter(availabilityFilter_);
+        filters.recordedCell = knownBooleanFilter(recordedCellFilter_);
         switch (spatialKindFilter_) {
         case 1:
             filters.spatialKind = SpatialKind::Interior;
@@ -452,10 +461,17 @@ namespace whereabouts::ui
             selected_.reset();
             selectedLocation_.reset();
             pendingLocationTravel_.reset();
+            pendingContextualMovement_.reset();
+            pendingRecordedCell_.reset();
+            pendingContextualNpcRuntimeID_ = 0;
             locationTravelArmed_ = false;
             locationTravelGate_.Cancel();
             locationTravelGeneration_ = 0;
+            contextualMovementArmed_ = false;
+            contextualMovementGate_.Cancel();
+            contextualMovementGeneration_ = 0;
             openLocationTravelConfirmation_ = false;
+            openContextualMovementConfirmation_ = false;
             locationResults_.clear();
             searchLocationResults_.clear();
             searchSuggestions_.clear();
@@ -720,6 +736,11 @@ namespace whereabouts::ui
                     8);
             }));
         }
+        for (auto& completion : mailbox.contextualMovement) {
+            static_cast<void>(operationEpoch_.RunIfCurrent(completion.epoch, [&] {
+                SetCommandStatus(std::move(completion.message));
+            }));
+        }
     }
 
     void Menu::QueueUseConsoleTarget()
@@ -805,8 +826,10 @@ namespace whereabouts::ui
                     clearPendingSelection();
                     return;
                 }
-                if (targets_.Select(snapshot, source) && snapshot.StableReference().IsPersistable()) {
-                    if (targets_.IsSelectionRequestCurrent(serial)) {
+                if (targets_.Select(snapshot, source)) {
+                    static_cast<void>(index_.RefreshRuntimeId(snapshot.ReferenceRuntimeID()));
+                    if (snapshot.StableReference().IsPersistable() &&
+                        targets_.IsSelectionRequestCurrent(serial)) {
                         static_cast<void>(savedNpcs_.RecordRecent({snapshot.StableReference(), snapshot.displayName}));
                     }
                 }
@@ -880,7 +903,7 @@ namespace whereabouts::ui
         }
         ImGuiMCP::Text("%s: %08X", TranslateText("FormID"), npc.ReferenceRuntimeID());
         ImGuiMCP::SameLine();
-        const auto primaryLocation = LocalizedPrimarySpatialLabel(npc.spatial);
+        const auto primaryLocation = NpcLocationLabel(npc);
         ImGuiMCP::Text("%s: %s", TranslateText("Location"), primaryLocation.c_str());
         const auto sourcePlugin = npc.SourcePlugin();
         ImGuiMCP::Text(
@@ -888,6 +911,10 @@ namespace whereabouts::ui
             TranslateText("Plugin"),
             sourcePlugin.empty() ? TranslateText("Dynamic / unavailable") :
                                    std::string(sourcePlugin).c_str());
+        if (!npc.available) {
+            ImGuiMCP::TextWrapped("%s", TranslateText(
+                "This NPC's placed record is indexed, but Skyrim has not instantiated its reference because its cell has not loaded. Live status and commands become available automatically when the reference loads."));
+        }
 
         ImGuiMCP::Spacing();
         const auto commandsHeading = std::format(
@@ -962,6 +989,11 @@ namespace whereabouts::ui
                     }
                 };
 
+                const bool recordedCellResolvable = npc.recordedCell &&
+                    commandService_.IsRecordedCellResolvable(*npc.recordedCell);
+                const auto contextualMovement = ClassifyContextualMovement(
+                    npc.available, npc.recordedCell, recordedCellResolvable);
+
                 for (const auto& actionID : commandActions) {
                     if (actionID == kActorFlagsGroupActionID) {
                         static_cast<void>(ImGuiMCP::TableNextColumn());
@@ -1000,6 +1032,12 @@ namespace whereabouts::ui
                         }
                         DelayedTooltip(TranslateText(
                             "Changes independent Essential and Protected flags on the effective base NPC."));
+                        continue;
+                    }
+
+                    const auto builtInCommand = CommandForActionID(actionID);
+                    if (builtInCommand && *builtInCommand == CommandKind::Travel &&
+                        contextualMovement == ContextualMovementAction::None) {
                         continue;
                     }
 
@@ -1044,7 +1082,36 @@ namespace whereabouts::ui
                         OverflowTooltip(custom.name, labelWidth);
                         continue;
                     }
-                    if (const auto command = CommandForActionID(actionID)) renderCommand(*command);
+                    if (builtInCommand && *builtInCommand == CommandKind::Travel &&
+                        contextualMovement == ContextualMovementAction::TravelToCell) {
+                        const auto label = TranslateOwned("Travel to Cell");
+                        const auto width = ImGuiMCP::GetContentRegionAvail().x;
+                        if (ImGuiMCP::Button(label.c_str(), {-1.0F, 0.0F})) {
+                            RequestContextualMovement(ContextualMovementAction::TravelToCell);
+                        }
+                        const auto cellName = npc.recordedCell->displayName.empty() ?
+                            TranslateOwned("destination cell") : npc.recordedCell->displayName;
+                        const auto tooltip = TranslateFormat(
+                            "Travel to {} to try to materialize {}. This does not guarantee the NPC will be enabled or nearby.",
+                            cellName, npc.displayName);
+                        DelayedTooltip(tooltip.c_str());
+                        OverflowTooltip(label, width);
+                        continue;
+                    }
+                    if (builtInCommand) renderCommand(*builtInCommand);
+                }
+
+                if (const auto token = operationEpoch_.Capture();
+                    token && commandService_.HasReturnPoint(*token)) {
+                    static_cast<void>(ImGuiMCP::TableNextColumn());
+                    const auto label = TranslateOwned("Return");
+                    const auto width = ImGuiMCP::GetContentRegionAvail().x;
+                    if (ImGuiMCP::Button(label.c_str(), {-1.0F, 0.0F})) {
+                        RequestContextualMovement(ContextualMovementAction::Return);
+                    }
+                    DelayedTooltip(TranslateText(
+                        "Return to the exact position saved before the latest Travel to Cell."));
+                    OverflowTooltip(label, width);
                 }
 
                 ImGuiMCP::EndTable();
@@ -1248,8 +1315,80 @@ namespace whereabouts::ui
                     row(TranslateText("Distance"), distance);
                     ImGuiMCP::EndTable();
                 }
+
+                ImGuiMCP::Spacing();
+                ImGuiMCP::SeparatorText(TranslateText("Recorded Cell"));
+                if (!npc.recordedCell || !npc.recordedCell->Known()) {
+                    ImGuiMCP::TextWrapped("%s", TranslateText(
+                        "Recorded cell: Unknown. The winning placed NPC record did not provide an exact owning cell, so Whereabouts cannot offer Travel to Cell."));
+                } else {
+                    const auto& cell = *npc.recordedCell;
+                    const auto stable = std::format(
+                        "{}|{:06X}", cell.identity.plugin, cell.identity.localID);
+                    const auto runtime = cell.runtimeFormID == 0 ? std::string{} :
+                        std::format("{:08X}", cell.runtimeFormID);
+                    const auto type = TranslateOwned(cell.interior ? "Interior" : "Exterior");
+                    const auto cellResolvable = commandService_.IsRecordedCellResolvable(cell);
+                    const auto copyRow = [&](const char* label, const std::string& value) {
+                        if (value.empty()) return;
+                        ImGuiMCP::TableNextRow();
+                        static_cast<void>(ImGuiMCP::TableSetColumnIndex(0));
+                        ImGuiMCP::TextUnformatted(label);
+                        static_cast<void>(ImGuiMCP::TableSetColumnIndex(1));
+                        const auto width = ImGuiMCP::GetContentRegionAvail().x;
+                        ImGuiMCP::TextWrapped("%s", value.c_str());
+                        OverflowTooltip(value, width);
+                        static_cast<void>(ImGuiMCP::TableSetColumnIndex(2));
+                        ImGuiMCP::PushID(label);
+                        if (ImGuiMCP::SmallButton(TranslateText("Copy"))) {
+                            ImGuiMCP::SetClipboardText(value.c_str());
+                            SetCommandStatus(TranslateFormat("Copied {}.", label));
+                        }
+                        ImGuiMCP::PopID();
+                    };
+                    if (ImGuiMCP::BeginTable(
+                            "##WhereaboutsRecordedCellDetails", 3,
+                            ImGuiMCP::ImGuiTableFlags_RowBg |
+                                ImGuiMCP::ImGuiTableFlags_SizingStretchProp)) {
+                        ImGuiMCP::TableSetupColumn(
+                            TranslateText("Label"), ImGuiMCP::ImGuiTableColumnFlags_WidthFixed, 175.0F);
+                        ImGuiMCP::TableSetupColumn(
+                            TranslateText("Value"), ImGuiMCP::ImGuiTableColumnFlags_WidthStretch);
+                        ImGuiMCP::TableSetupColumn(
+                            TranslateText("Copy"), ImGuiMCP::ImGuiTableColumnFlags_WidthFixed, 58.0F);
+                        copyRow(TranslateText("Recorded Cell"), cell.displayName.empty() ?
+                            TranslateOwned("Unnamed cell") : cell.displayName);
+                        copyRow(TranslateText("Cell FormID"), runtime);
+                        copyRow(TranslateText("Cell EditorID"), cell.editorID);
+                        copyRow(TranslateText("Stable cell identity"), stable);
+                        copyRow(TranslateText("Cell type"), type);
+                        copyRow(TranslateText("Recorded worldspace"), cell.worldspaceName);
+                        ImGuiMCP::EndTable();
+                    }
+                    if (!cellResolvable) {
+                        ImGuiMCP::TextWrapped("%s", TranslateText(
+                            "The exact recorded cell is known but does not currently resolve, so Travel to Cell is unavailable."));
+                    } else if (!npc.available) {
+                        ImGuiMCP::TextWrapped("%s", TranslateText(
+                            "Travel to Cell loads the owning cell but may not place you beside this NPC if it remains disabled or quest-gated."));
+                    }
+                }
         }
 
+    }
+
+    std::string Menu::NpcLocationLabel(const NpcSnapshot& npc) const
+    {
+        const auto location = SelectNpcLocationPresentation(npc);
+        switch (location.source) {
+        case NpcLocationSource::Observed:
+            return LocalizedPrimarySpatialLabel(npc.spatial);
+        case NpcLocationSource::RecordedCell:
+            return std::format("{}: {}", TranslateText("Recorded Cell"), location.value);
+        case NpcLocationSource::Unavailable:
+            return LocalizedPrimarySpatialLabel(npc.spatial);
+        }
+        return LocalizedPrimarySpatialLabel(npc.spatial);
     }
 
     void Menu::CenterNextModal()
@@ -1632,10 +1771,14 @@ namespace whereabouts::ui
         if (std::exchange(openLocationTravelConfirmation_, false)) {
             ImGuiMCP::OpenPopup(TranslateText("Travel to this location?"));
         }
+        if (std::exchange(openContextualMovementConfirmation_, false)) {
+            ImGuiMCP::OpenPopup(TranslateText("Confirm movement"));
+        }
         RenderCommandConfirmation();
         RenderTrackingWarning();
         RenderPrepareForUninstall();
         RenderLocationTravelConfirmation();
+        RenderContextualMovementConfirmation();
         RenderControllerKeyboard();
     }
 
@@ -1695,6 +1838,12 @@ namespace whereabouts::ui
         pendingLocationTravel_.reset();
         locationTravelArmed_ = false;
         locationTravelGeneration_ = 0;
+        contextualMovementGate_.Cancel();
+        pendingContextualMovement_.reset();
+        pendingRecordedCell_.reset();
+        pendingContextualNpcRuntimeID_ = 0;
+        contextualMovementArmed_ = false;
+        contextualMovementGeneration_ = 0;
         completions_.Clear();
         uninstallPhase_ = NextUninstallPhase(uninstallPhase_, UninstallEvent::Resume);
         commandsBlocked_ = true;
@@ -1843,6 +1992,130 @@ namespace whereabouts::ui
         }
     }
 
+    void Menu::RequestContextualMovement(ContextualMovementAction action)
+    {
+        if (commandsBlocked_ ||
+            (action != ContextualMovementAction::TravelToCell &&
+                action != ContextualMovementAction::Return)) return;
+        contextualMovementGate_.Cancel();
+        contextualMovementArmed_ = false;
+        contextualMovementGeneration_ = 0;
+        pendingContextualMovement_ = action;
+        pendingRecordedCell_.reset();
+        pendingContextualNpcRuntimeID_ = 0;
+        if (action == ContextualMovementAction::TravelToCell) {
+            if (!selected_ || !selected_->recordedCell) {
+                pendingContextualMovement_.reset();
+                SetCommandStatus("No exact recorded cell is available for this NPC.");
+                return;
+            }
+            pendingRecordedCell_ = selected_->recordedCell;
+            pendingContextualNpcRuntimeID_ = selected_->ReferenceRuntimeID();
+        }
+        if (settings_.showCommandConfirmations) {
+            openContextualMovementConfirmation_ = true;
+            return;
+        }
+        contextualMovementGeneration_ = contextualMovementGate_.Arm();
+        contextualMovementArmed_ = true;
+        SetCommandStatus(action == ContextualMovementAction::TravelToCell ?
+            "Travel to Cell queued." : "Return queued.");
+        if (auto* mainWindow = SKSEMenuFramework::GetMainWindow()) mainWindow->IsOpen = false;
+    }
+
+    void Menu::RenderContextualMovementConfirmation()
+    {
+        CenterNextModal();
+        if (!ImGuiMCP::BeginPopupModal(
+                TranslateText("Confirm movement"), nullptr,
+                ImGuiMCP::ImGuiWindowFlags_AlwaysAutoResize)) return;
+        if (!pendingContextualMovement_) {
+            ImGuiMCP::CloseCurrentPopup();
+            ImGuiMCP::EndPopup();
+            return;
+        }
+        const bool travel = *pendingContextualMovement_ == ContextualMovementAction::TravelToCell;
+        if (travel && (!pendingRecordedCell_ || pendingContextualNpcRuntimeID_ == 0)) {
+            pendingContextualMovement_.reset();
+            ImGuiMCP::CloseCurrentPopup();
+            ImGuiMCP::EndPopup();
+            return;
+        }
+        const auto destination = travel ?
+            (pendingRecordedCell_->displayName.empty() ? TranslateOwned("destination cell") :
+                pendingRecordedCell_->displayName) : TranslateOwned("previous location");
+        const auto message = travel ?
+            TranslateFormat("Travel to {}? This closes the SKSE menu.", destination) :
+            TranslateOwned("Return to the previous location? This closes the SKSE menu.");
+        ImGuiMCP::TextWrapped("%s", message.c_str());
+        ImGuiMCP::Spacing();
+        if (ImGuiMCP::Button(TranslateText(travel ? "Travel to Cell" : "Return"))) {
+            contextualMovementGeneration_ = contextualMovementGate_.Arm();
+            contextualMovementArmed_ = true;
+            SetCommandStatus(travel ? "Travel to Cell queued." : "Return queued.");
+            ImGuiMCP::CloseCurrentPopup();
+            if (auto* mainWindow = SKSEMenuFramework::GetMainWindow()) mainWindow->IsOpen = false;
+        }
+        ImGuiMCP::SameLine();
+        if (ImGuiMCP::Button(TranslateText("Cancel"))) {
+            pendingContextualMovement_.reset();
+            pendingRecordedCell_.reset();
+            pendingContextualNpcRuntimeID_ = 0;
+            contextualMovementArmed_ = false;
+            contextualMovementGate_.Cancel();
+            contextualMovementGeneration_ = 0;
+            SetCommandStatus("Movement cancelled.");
+            ImGuiMCP::CloseCurrentPopup();
+        }
+        ImGuiMCP::EndPopup();
+    }
+
+    void Menu::ObserveContextualMovementClose(bool frameworkWindowOpen)
+    {
+        if (!contextualMovementArmed_) return;
+        if (!contextualMovementGate_.TakeForDispatch(
+                contextualMovementGeneration_, frameworkWindowOpen)) return;
+        contextualMovementArmed_ = false;
+        SubmitPendingContextualMovement();
+    }
+
+    void Menu::SubmitPendingContextualMovement()
+    {
+        if (!pendingContextualMovement_) return;
+        const auto action = *pendingContextualMovement_;
+        const auto cell = pendingRecordedCell_;
+        const auto npcRuntimeID = pendingContextualNpcRuntimeID_;
+        pendingContextualMovement_.reset();
+        pendingRecordedCell_.reset();
+        pendingContextualNpcRuntimeID_ = 0;
+        contextualMovementGeneration_ = 0;
+        const auto token = operationEpoch_.Capture();
+        if (!token || !SubmitGameTask(*token,
+                [this, action, cell, npcRuntimeID](OperationEpochToken current) {
+                    std::expected<void, std::string> result;
+                    if (action == ContextualMovementAction::TravelToCell && cell) {
+                        result = commandService_.TravelToRecordedCell(
+                            *cell, npcRuntimeID, current);
+                    } else if (action == ContextualMovementAction::Return) {
+                        result = commandService_.ReturnToPreviousLocation(current);
+                    } else {
+                        result = std::unexpected("The movement request is invalid");
+                    }
+                    if (!result) {
+                        SetCommandStatus(result.error());
+                        return;
+                    }
+                    if (action == ContextualMovementAction::TravelToCell) {
+                        searchRefreshState_.Request();
+                        SetCommandStatus("Recorded cell loaded. The NPC may remain unavailable if disabled or quest-gated.");
+                    } else {
+                        SetCommandStatus("Return queued; exact position will be restored after the cell settles.");
+                    }
+                })) {
+            SetCommandStatus("The current game session is not ready.");
+        }
+    }
+
     void Menu::SetLocationStatus(std::string status)
     {
         status = TranslateOwned(status);
@@ -1967,14 +2240,22 @@ namespace whereabouts::ui
                 commandsBlocked_ = true;
                 tracking_.SetUninstallLocked(true);
                 commandService_.CancelPendingOperations();
+                commandService_.ClearTransientState();
                 tracking_.CancelPendingOperations();
                 locationTravelGate_.Cancel();
                 pendingLocationTravel_.reset();
                 locationTravelArmed_ = false;
                 locationTravelGeneration_ = 0;
+                contextualMovementGate_.Cancel();
+                pendingContextualMovement_.reset();
+                pendingRecordedCell_.reset();
+                pendingContextualNpcRuntimeID_ = 0;
+                contextualMovementArmed_ = false;
+                contextualMovementGeneration_ = 0;
                 openCommandConfirmation_ = false;
                 openTrackingWarning_ = false;
                 openLocationTravelConfirmation_ = false;
+                openContextualMovementConfirmation_ = false;
                 static_cast<void>(targets_.IssueSelectionRequest());
                 pendingSelectionSerial_.store(0, std::memory_order_release);
                 completions_.Clear();
@@ -2504,7 +2785,7 @@ namespace whereabouts::ui
             const auto locationHit = BeginRowInteractionCell("##savedLocationCell", rowHeight);
             interaction.Include(locationHit.hovered, locationHit.activated);
             if (snapshot) {
-                const auto location = LocalizedPrimarySpatialLabel(snapshot->spatial);
+                const auto location = NpcLocationLabel(*snapshot);
                 const auto locationWidth = ImGuiMCP::GetContentRegionAvail().x;
                 ImGuiMCP::TextUnformatted(location.c_str());
                 const auto worldspace = SecondaryWorldspaceLabel(snapshot->spatial);
@@ -2578,6 +2859,7 @@ namespace whereabouts::ui
         sexFilter_ = 0;
         essentialFilter_ = 0;
         protectedFilter_ = 0;
+        recordedCellFilter_ = 0;
         spatialKindFilter_ = 0;
         spatialFreshnessFilter_ = 0;
         worldspaceFilterFormID_ = 0;
@@ -2636,6 +2918,7 @@ namespace whereabouts::ui
         teammateFilter_ = 0;
         potentialFollowerFilter_ = 0;
         loadedFilter_ = 0;
+        availabilityFilter_ = 0;
         ResetAdvancedFilters();
         favoritesOnly_ = false;
         trackedOnly_ = false;
