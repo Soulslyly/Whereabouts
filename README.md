@@ -8,12 +8,12 @@ Whereabouts adds searchable NPC and location explorers to SKSE Menu Framework. I
 - Microsoft Visual C++ 2015-2022 x64 Redistributable
 - SKSE matching that runtime
 - Address Library for SKSE Plugins matching that runtime
-- One menu framework: SKSE Menu Framework 3.14.1 (DLL fixed version 3.14.x+), ApocryphaRealm Menu Framework 1.8.4+ within major 1, or ApocryphaRealm Menu Framework 2.x; do not enable both frameworks together
+- One SMF-compatible menu framework: recognized ranges are SKSE Menu Framework DLL 3.14.x+ within major 3, AMF 1.8.4+ within major 1, or AMF 2.x; do not enable multiple frameworks together. Future major versions and compatible replacements may run under the default untested-framework policy below.
 - Backported Extended ESL Support (BEES), on Skyrim 1.5.97 only, for the unchanged modern light-plugin format
 
 UIExtensions, MCM Helper, SkyUI MCM, and PapyrusUtil are not required.
 
-The standard DLL and dependency contracts are tool-validated for all three listed flat runtimes. Exact installed SMF 3.14.0.0 and AMF 1.8.4.0 binaries pass the required-export check; the official AMF 2.x source retains the compatible consumer surface used by Whereabouts, but AMF 2.x still requires an in-game confirmation. The unified source also builds an experimental VR target, but VR remains untested in game and is not included in the standard Main archive.
+The standard DLL and dependency contracts are tool-validated for all three listed flat runtimes. Exact installed SMF 3.14.0.0 and AMF 2.0.3.0 binaries pass the required-export check; this is not an in-game confirmation. The unified source also builds an experimental VR target, but VR remains untested in game and is not included in the standard Main archive.
 
 Standard SKSE translation files are included for all nine Skyrim Special Edition languages. The Main archive contains the translated resources, with English fallback text for any untranslated value. Whereabouts Settings can override its language without changing Skyrim's language, with a full restart required so the whole menu remains consistent.
 
@@ -73,6 +73,8 @@ Install the main archive with a mod manager and enable `Whereabouts.esp`. Keep t
 Open SKSE Menu Framework and choose the Whereabouts section. Use **Use Console Target** for an NPC selected by clicking it or using `prid`. To capture that NPC whenever Whereabouts opens, enable **Auto-select console target** in Settings.
 
 ## Configuration
+
+**Allow untested menu frameworks** defaults on under Settings > Advanced. Future framework versions and replacements that expose the same `SKSEMenuFramework` consumer interface may run after the complete required-export check; the log clearly marks unrecognized provider/version evidence as untested. Exports do not guarantee ABI or behavior compatibility. Missing required APIs and known unsupported legacy interfaces still block, and Skyrim/SKSE/VR environment gates are unchanged. Turn the option off for strict recognized-provider/version checks. It is also editable as `[General] AllowUntestedMenuFrameworks` in `Data/SKSE/Plugins/Whereabouts.ini`, so recovery does not depend on opening a blocked menu. Changes require a full Skyrim restart. A replacement using a different module handle/interface requires integration work, not merely this setting.
 
 Global settings are stored in `Data/SKSE/Plugins/Whereabouts.ini`. The Settings page keeps language, result limits, UI density, Virtual Keyboard, distance, Favorites sharing, commands, tracking, and maintenance choices easy to reach and places uncommon safety and diagnostic controls under Advanced. `Follow Skyrim` is the default language; an explicit choice changes only Whereabouts after a full restart. Search content, result ordering, and filters remain transient menu-session choices. Favorites remain per-save unless sharing is enabled; recent history and the one-time tracking warning acknowledgement are always stored per save. Whereabouts adds no gameplay keybind; it is opened and navigated through SKSE Menu Framework.
 

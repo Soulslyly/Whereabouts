@@ -30,7 +30,8 @@ namespace whereabouts
         UnknownProvider,
         VersionUnavailable,
         UnsupportedVersion,
-        MissingRequiredExport
+        MissingRequiredExport,
+        CompatibleUntested
     };
 
     [[nodiscard]] constexpr wchar_t FoldAscii(wchar_t value) noexcept
@@ -87,18 +88,34 @@ namespace whereabouts
         bool moduleLoaded,
         MenuFrameworkProvider provider,
         std::optional<MenuFrameworkVersion> fixedVersion,
-        bool requiredExportsAvailable) noexcept
+        bool requiredExportsAvailable,
+        bool allowUntested = true) noexcept
     {
         if (!moduleLoaded) return MenuFrameworkCompatibility::ModuleUnavailable;
-        if (provider == MenuFrameworkProvider::Unknown) {
-            return MenuFrameworkCompatibility::UnknownProvider;
-        }
-        if (!fixedVersion) return MenuFrameworkCompatibility::VersionUnavailable;
-        if (!SupportsMenuFrameworkVersion(provider, *fixedVersion)) {
-            return MenuFrameworkCompatibility::UnsupportedVersion;
-        }
         if (!requiredExportsAvailable) {
             return MenuFrameworkCompatibility::MissingRequiredExport;
+        }
+        // Preserve the established legacy floors; permissive admission is for
+        // new or unrecognized interfaces, not already unsupported old ones.
+        if (fixedVersion &&
+            ((provider == MenuFrameworkProvider::SkseMenuFramework &&
+              (fixedVersion->major < 3 ||
+               (fixedVersion->major == 3 && fixedVersion->minor < 14))) ||
+             (provider == MenuFrameworkProvider::ApocryphaRealmMenuFramework &&
+              (fixedVersion->major < 1 ||
+               (fixedVersion->major == 1 &&
+                !SupportsMenuFrameworkVersion(provider, *fixedVersion)))))) {
+            return MenuFrameworkCompatibility::UnsupportedVersion;
+        }
+        if (provider == MenuFrameworkProvider::Unknown) {
+            return allowUntested ? MenuFrameworkCompatibility::CompatibleUntested :
+                                   MenuFrameworkCompatibility::UnknownProvider;
+        }
+        if (!fixedVersion) return allowUntested ? MenuFrameworkCompatibility::CompatibleUntested :
+                                               MenuFrameworkCompatibility::VersionUnavailable;
+        if (!SupportsMenuFrameworkVersion(provider, *fixedVersion)) {
+            return allowUntested ? MenuFrameworkCompatibility::CompatibleUntested :
+                                   MenuFrameworkCompatibility::UnsupportedVersion;
         }
         return MenuFrameworkCompatibility::Compatible;
     }
@@ -125,6 +142,7 @@ namespace whereabouts
         case MenuFrameworkCompatibility::VersionUnavailable: return "fixed version unavailable";
         case MenuFrameworkCompatibility::UnsupportedVersion: return "unsupported fixed version";
         case MenuFrameworkCompatibility::MissingRequiredExport: return "required export missing";
+        case MenuFrameworkCompatibility::CompatibleUntested: return "compatible (untested)";
         }
         return "unknown";
     }

@@ -239,6 +239,7 @@ namespace whereabouts
             if (path == "general.regexdefault") return true;
             WHEREABOUTS_UINT("general.recentlimit", recentLimit)
             WHEREABOUTS_BOOL("general.debuglogging", debugLogging)
+            WHEREABOUTS_BOOL("general.allowuntestedmenuframeworks", allowUntestedMenuFrameworks)
             WHEREABOUTS_BOOL("general.sharefavoritesbetweensaves", shareFavoritesAcrossSaves)
 
             if (path == "targeting.teleportrange") {
@@ -602,7 +603,8 @@ namespace whereabouts
                << "LiveSearch=" << BoolText(settings.liveSearch) << '\n'
                << "RecentLimit=" << settings.recentLimit << '\n'
                << "ShareFavoritesBetweenSaves=" << BoolText(settings.shareFavoritesAcrossSaves) << '\n'
-               << "DebugLogging=" << BoolText(settings.debugLogging) << "\n\n"
+               << "DebugLogging=" << BoolText(settings.debugLogging) << '\n'
+               << "AllowUntestedMenuFrameworks=" << BoolText(settings.allowUntestedMenuFrameworks) << "\n\n"
                << "[Targeting]\n"
                << "TeleportRange=" << settings.teleportRange << '\n'
                << "AutoSelectConsoleTarget=" << BoolText(settings.autoSelectConsoleTarget) << '\n'

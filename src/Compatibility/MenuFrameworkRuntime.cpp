@@ -60,7 +60,7 @@ namespace whereabouts
         }
     }
 
-    MenuFrameworkRuntimeProbe ProbeLoadedMenuFramework() noexcept
+    MenuFrameworkRuntimeProbe ProbeLoadedMenuFramework() noexcept try
     {
         MenuFrameworkRuntimeProbe result;
         const auto module = GetModuleHandleW(L"SKSEMenuFramework.dll");
@@ -68,6 +68,8 @@ namespace whereabouts
 
         result.moduleLoaded = true;
         if (const auto modulePath = ReadModulePath(module)) {
+            const auto utf8 = std::filesystem::path(*modulePath).u8string();
+            result.modulePath.assign(reinterpret_cast<const char*>(utf8.data()), utf8.size());
             result.provider = IdentifyMenuFrameworkProvider(*modulePath);
             result.fixedVersion = ReadFixedVersion(*modulePath);
         }
@@ -180,5 +182,8 @@ namespace whereabouts
         }
 
         return result;
+    } catch (...) {
+        // Never let metadata/path allocation failures admit an unchecked API.
+        return {};
     }
 }

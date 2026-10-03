@@ -146,7 +146,8 @@ namespace
             frameworkProbe.moduleLoaded,
             frameworkProbe.provider,
             frameworkProbe.fixedVersion,
-            frameworkProbe.requiredExportsAvailable);
+            frameworkProbe.requiredExportsAvailable,
+            context->settings.allowUntestedMenuFrameworks);
         if (frameworkProbe.fixedVersion) {
             const auto version = *frameworkProbe.fixedVersion;
             logger::info(
@@ -157,20 +158,39 @@ namespace
                 version.patch,
                 version.build);
         }
-        if (frameworkCompatibility != whereabouts::MenuFrameworkCompatibility::Compatible) {
+        if (frameworkCompatibility != whereabouts::MenuFrameworkCompatibility::Compatible &&
+            frameworkCompatibility != whereabouts::MenuFrameworkCompatibility::CompatibleUntested) {
             logger::error(
                 "Menu framework compatibility rejected: {}{}; "
-                "Whereabouts requires SMF 3.14.x+ within major 3, AMF 1.8.4+ within major 1, or AMF 2.x",
+                "module={}; required APIs and legacy minimum versions cannot be bypassed. "
+                "For an untested version/provider only, set [General] AllowUntestedMenuFrameworks=true "
+                "in Data/SKSE/Plugins/Whereabouts.ini and restart Skyrim",
                 whereabouts::MenuFrameworkCompatibilityLabel(frameworkCompatibility),
                 frameworkProbe.missingRequiredExport.empty() ?
                     std::string{} :
-                    std::format(" ({})", frameworkProbe.missingRequiredExport));
+                    std::format(" ({})", frameworkProbe.missingRequiredExport),
+                frameworkProbe.modulePath);
             return;
         }
 
-        logger::info(
-            "{} compatibility accepted",
-            whereabouts::MenuFrameworkProviderLabel(frameworkProbe.provider));
+        if (frameworkCompatibility == whereabouts::MenuFrameworkCompatibility::CompatibleUntested) {
+            const auto strictReason = whereabouts::DecideMenuFrameworkCompatibility(
+                frameworkProbe.moduleLoaded, frameworkProbe.provider,
+                frameworkProbe.fixedVersion, frameworkProbe.requiredExportsAvailable, false);
+            const auto version = frameworkProbe.fixedVersion;
+            logger::warn(
+                "Untested menu framework admitted: provider={}; module={}; version={}; reason={}. "
+                "Required exports are present, but ABI/behavior compatibility is unconfirmed. "
+                "Set [General] AllowUntestedMenuFrameworks=false and restart Skyrim for strict checks",
+                whereabouts::MenuFrameworkProviderLabel(frameworkProbe.provider),
+                frameworkProbe.modulePath,
+                version ? std::format("{}.{}.{}.{}", version->major, version->minor,
+                    version->patch, version->build) : std::string{"unknown"},
+                whereabouts::MenuFrameworkCompatibilityLabel(strictReason));
+        } else {
+            logger::info("{} compatibility accepted",
+                whereabouts::MenuFrameworkProviderLabel(frameworkProbe.provider));
+        }
         static_cast<void>(whereabouts::ui::InitializeLocalization(
             context->settings.translationLanguage));
         if (!context->serializationReady.load(std::memory_order_acquire) ||

@@ -4,11 +4,13 @@ param(
     [string]$MenuFrameworkDll,
 
     [Parameter(Mandatory)]
-    [string]$ProjectRoot
+    [string]$ProjectRoot,
+    [switch]$StrictMenuFrameworkChecks
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+. (Join-Path $PSScriptRoot 'VrDependencyContract.ps1')
 
 function Read-UInt16([byte[]]$Bytes, [int]$Offset) {
     [BitConverter]::ToUInt16($Bytes, $Offset)
@@ -75,23 +77,9 @@ function Get-PeExports([string]$Path) {
 $dllPath = (Resolve-Path -LiteralPath $MenuFrameworkDll).Path
 $version = (Get-Item -LiteralPath $dllPath).VersionInfo
 $dllName = [IO.Path]::GetFileName($dllPath)
-if ($dllName.Equals('SKSEMenuFramework.dll', [StringComparison]::OrdinalIgnoreCase)) {
-    $provider = 'SKSE Menu Framework'
-    $supportedVersion = $version.FileMajorPart -eq 3 -and $version.FileMinorPart -ge 14
-}
-elseif ($dllName.Equals('!ApocryphaMenuFramework.dll', [StringComparison]::OrdinalIgnoreCase) -or
-        $dllName.Equals('ApocryphaMenuFramework.dll', [StringComparison]::OrdinalIgnoreCase)) {
-    $provider = 'ApocryphaRealm Menu Framework'
-    $supportedVersion = $version.FileMajorPart -eq 2 -or
-        ($version.FileMajorPart -eq 1 -and
-         ($version.FileMinorPart -gt 8 -or
-          ($version.FileMinorPart -eq 8 -and $version.FileBuildPart -ge 4)))
-}
-else {
-    throw "Unknown menu framework provider: $dllName"
-}
-if (-not $supportedVersion) {
-    throw "Unsupported $provider fixed version: $($version.FileVersion)"
+$fixedVersion = if ([string]::IsNullOrWhiteSpace($version.FileVersion)) { $null } else {
+    [version]('{0}.{1}.{2}.{3}' -f $version.FileMajorPart, $version.FileMinorPart,
+        $version.FileBuildPart, $version.FilePrivatePart)
 }
 
 $exports = Get-PeExports $dllPath
@@ -130,6 +118,13 @@ foreach ($wrapper in $usedWrappers) {
 $missing = @($required | Where-Object { -not $exports.Contains($_) } | Sort-Object)
 if ($missing.Count -ne 0) {
     throw "Installed menu framework DLL is missing required exports: $($missing -join ', ')"
+}
+
+$policy = Get-WhereaboutsMenuFrameworkVersionPolicy -FileName $dllName -Version $fixedVersion `
+    -AllowUntestedMenuFrameworks (-not $StrictMenuFrameworkChecks)
+$provider = $policy.Provider
+if ($policy.Untested) {
+    Write-Warning "Untested framework allowed: $dllPath version=$fixedVersion. Exports are present; ABI/behavior compatibility is unconfirmed."
 }
 
 $runtimeProbe = Get-Content -LiteralPath (

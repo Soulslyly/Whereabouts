@@ -518,6 +518,10 @@ namespace whereabouts::ui
                 &settings_.keepOpenAfterInlineCommand);
 
             saveNow |= ImGuiMCP::Checkbox(TranslateText("Debug logging"), &settings_.debugLogging);
+            saveNow |= ImGuiMCP::Checkbox(
+                TranslateText("Allow untested menu frameworks"), &settings_.allowUntestedMenuFrameworks);
+            DelayedTooltip(TranslateText(
+                "Allows untested framework versions and compatible replacements with a log warning. Required APIs and known incompatible versions remain blocked. Restart Skyrim to apply."));
         }
 
         if (saveNow) SaveSettings();

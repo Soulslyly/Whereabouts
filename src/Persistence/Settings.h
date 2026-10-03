@@ -84,6 +84,7 @@ namespace whereabouts
         bool keepOpenAfterInlineCommand{true};
         bool rememberFilters{true};
         bool debugLogging{false};
+        bool allowUntestedMenuFrameworks{true};
         std::uint32_t recentLimit{20};
         ControllerKeyboardLayout controllerKeyboardLayout{ControllerKeyboardLayout::Alphabetical};
         DistanceUnit distanceUnit{DistanceUnit::Meters};

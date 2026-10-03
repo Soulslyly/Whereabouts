@@ -21,6 +21,8 @@ $Whereabouts_LocationSearchInput	Location name or ID
 $Whereabouts_LocationSearchHelp	Search by cell name, EditorID, FormID, plugin, location, or worldspace.		
 $Whereabouts_IncludeLocationsHelp	Also searches cells and travel destinations.		
 $Whereabouts_PreparingSearchIndex	Preparing search index...		
+$Whereabouts_AllowUntestedMenuFrameworks	Allow untested menu frameworks		
+$Whereabouts_AllowUntestedMenuFrameworksHelp	Allows untested framework versions and compatible replacements with a log warning. Required APIs and known incompatible versions remain blocked. Restart Skyrim to apply.		
 $Whereabouts_SelectedLocation	Selected Location		
 $Whereabouts_NoLocationSelected	No location selected.		
 $Whereabouts_TravelToLocation	Travel to Location		

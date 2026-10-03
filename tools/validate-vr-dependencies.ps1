@@ -5,7 +5,8 @@ param(
     [Parameter(Mandatory = $true)][string]$SkseVrDll,
     [Parameter(Mandatory = $true)][string]$VrAddressLibrary,
     [Parameter(Mandatory = $true)][string]$VrEslSupportDll,
-    [Parameter(Mandatory = $true)][string]$MenuFrameworkDll
+    [Parameter(Mandatory = $true)][string]$MenuFrameworkDll,
+    [switch]$StrictMenuFrameworkChecks
 )
 
 Set-StrictMode -Version Latest
@@ -22,6 +23,7 @@ function Get-RequiredFile([string]$Path, [string]$Label) {
 
 function Get-NumericFileVersion([string]$Path) {
     $info = [System.Diagnostics.FileVersionInfo]::GetVersionInfo($Path)
+    if ([string]::IsNullOrWhiteSpace($info.FileVersion)) { return $null }
     '{0}.{1}.{2}.{3}' -f $info.FileMajorPart, $info.FileMinorPart, $info.FileBuildPart, $info.FilePrivatePart
 }
 
@@ -54,10 +56,11 @@ $values = @{
     VrEslSupportVersion = Get-NumericFileVersion $vrEsl.FullName
     MenuFrameworkFileName = $menuFramework.Name
     MenuFrameworkVersion = Get-NumericFileVersion $menuFramework.FullName
+    AllowUntestedMenuFrameworks = -not $StrictMenuFrameworkChecks
 }
 $result = Test-WhereaboutsVrDependencyValues @values
 
-& (Join-Path $ProjectRoot 'tools/validate-smf-binary.ps1') -MenuFrameworkDll $menuFramework.FullName -ProjectRoot $ProjectRoot
+& (Join-Path $ProjectRoot 'tools/validate-smf-binary.ps1') -MenuFrameworkDll $menuFramework.FullName -ProjectRoot $ProjectRoot -StrictMenuFrameworkChecks:$StrictMenuFrameworkChecks
 if ($LASTEXITCODE -ne 0) {
     throw 'The menu-framework binary validation failed.'
 }

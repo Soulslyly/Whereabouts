@@ -10,6 +10,7 @@ namespace whereabouts
     struct MenuFrameworkRuntimeProbe
     {
         bool moduleLoaded{false};
+        std::string modulePath;
         MenuFrameworkProvider provider{MenuFrameworkProvider::Unknown};
         std::optional<MenuFrameworkVersion> fixedVersion;
         bool requiredExportsAvailable{false};

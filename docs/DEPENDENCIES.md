@@ -1,4 +1,10 @@
-# Whereabouts 2.0.0 Dependency Lock
+# Whereabouts Dependency Lock
+
+## 2.1.2 admission evidence — 2026-10-03
+
+- Exact installed SMF 3.14.0.0 and AMF 2.0.3.0 expose all 88 required exports. SMF SHA-256: `FE7F398B62DDF23D2EA4C163A0EBFA2BFF80D19B7462224F037F79FA057EA67A`; AMF SHA-256: `0F72A2754A50986C21DDEE43BA719C01704C0050D702E33CE6F2B0A9EE635B21`.
+- Future majors, missing metadata and compatible replacements are untested admission, not verified ABI compatibility. AllowUntestedMenuFrameworks defaults ON; OFF restores recognized provider/version rules after restarting Skyrim. Required exports and known incompatible legacy floors always remain mandatory.
+- Standard/VR Release builds use the pinned sources below. No dependency changes or new Skyrim/VR runtime confirmation. Older installed-version observations below are historical.
 
 ## Local build environment
 
@@ -49,7 +55,7 @@ Installed game and mod-manager paths are read-only evidence and are intentionall
 - Legacy release test: Skyrim `1.5.97` / SKSE `2.0.20` / Address Library all-in-one legacy database / BEES
 - Development and first semantic test: Skyrim `1.6.1170` / SKSE `2.2.6` / Address Library all-in-one v12
 - Current-runtime release test: Skyrim `1.7.104` / SKSE `2.3.1` / Address Library all-in-one v13
-- Required menu framework for all targets: exactly one of SKSE Menu Framework `3.14.1` (DLL fixed version `3.14.x+` within major 3), ApocryphaRealm Menu Framework `1.8.4+` within major 1, or ApocryphaRealm Menu Framework `2.x`. Whereabouts identifies the loaded provider and checks its complete required-export surface; it does not resolve or call the obsolete float-version export.
+- Required menu framework for all targets: exactly one SMF-compatible provider. Recognized ranges are SKSE Menu Framework `3.14.1` (DLL fixed version `3.14.x+` within major 3), AMF `1.8.4+` within major 1, or AMF `2.x`. Untested providers/versions follow the default-ON policy above. Whereabouts checks its complete required-export surface; it does not resolve or call the obsolete float-version export.
 - The official SKSE site was rechecked on 2026-09-04 and identifies Steam runtime `1.7.104` with SKSE `2.3.1` as the current Anniversary Edition pair.
 - One DLL declares both ordinary Address Library and Address Library v5 support. Runtime support is advertised only after in-game testing on each target.
 

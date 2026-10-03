@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.1.2 - Menu-framework forward compatibility
+
+- Allow future framework major versions and unrecognized SMF-compatible replacements by default when every required API is present; log their compatibility as untested.
+- Add Allow untested menu frameworks in Settings > Advanced and the INI, with strict opt-out and restart guidance.
+- Retain missing-API, legacy minimum-version and Skyrim/SKSE runtime blocks; preserve save schemas, gameplay, ESP, Papyrus and public APIs.
+
 ## 2.1.1 - ApocryphaRealm Menu Framework 2.x compatibility
 
 - Accept AMF 2.x while preserving the existing AMF 1.8.4+ and SMF 3.14.x+ compatibility floors.
