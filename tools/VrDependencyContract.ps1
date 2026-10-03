@@ -39,8 +39,10 @@ function Test-WhereaboutsVrDependencyValues {
             break
         }
         '^!?ApocryphaMenuFramework\.dll$' {
-            if ($MenuFrameworkVersion.Major -ne 1 -or $MenuFrameworkVersion -lt [version]'1.8.4.0') {
-                throw 'Whereabouts requires ApocryphaRealm Menu Framework 1.8.4 or newer within major version 1.'
+            $supportedAmf = $MenuFrameworkVersion.Major -eq 2 -or
+                ($MenuFrameworkVersion.Major -eq 1 -and $MenuFrameworkVersion -ge [version]'1.8.4.0')
+            if (-not $supportedAmf) {
+                throw 'Whereabouts requires ApocryphaRealm Menu Framework 1.8.4 or newer within major version 1, or a 2.x release.'
             }
             'ApocryphaRealm Menu Framework'
             break

@@ -49,7 +49,7 @@ Installed game and mod-manager paths are read-only evidence and are intentionall
 - Legacy release test: Skyrim `1.5.97` / SKSE `2.0.20` / Address Library all-in-one legacy database / BEES
 - Development and first semantic test: Skyrim `1.6.1170` / SKSE `2.2.6` / Address Library all-in-one v12
 - Current-runtime release test: Skyrim `1.7.104` / SKSE `2.3.1` / Address Library all-in-one v13
-- Required menu framework for all targets: exactly one of SKSE Menu Framework `3.14.1` (DLL fixed version `3.14.x+` within major 3) or ApocryphaRealm Menu Framework `1.8.4+` within major 1. Whereabouts identifies the loaded provider and checks its complete required-export surface; it does not resolve or call the obsolete float-version export.
+- Required menu framework for all targets: exactly one of SKSE Menu Framework `3.14.1` (DLL fixed version `3.14.x+` within major 3), ApocryphaRealm Menu Framework `1.8.4+` within major 1, or ApocryphaRealm Menu Framework `2.x`. Whereabouts identifies the loaded provider and checks its complete required-export surface; it does not resolve or call the obsolete float-version export.
 - The official SKSE site was rechecked on 2026-09-04 and identifies Steam runtime `1.7.104` with SKSE `2.3.1` as the current Anniversary Edition pair.
 - One DLL declares both ordinary Address Library and Address Library v5 support. Runtime support is advertised only after in-game testing on each target.
 
@@ -68,6 +68,7 @@ Installed game and mod-manager paths are read-only evidence and are intentionall
 - The pinned SMF header declares `SetSection`, `AddSectionItem`, `AddEvent`, `AddInputEvent`, `GetMainWindow`, and a legacy float-version function. Whereabouts neither resolves nor calls that legacy function; compatibility uses the DLL fixed version and the complete required-export probe.
 - The installed SMF 3.14.0.0 DLL passes the current derived 88-export contract covering every ImGui wrapper currently called by Whereabouts plus its critical framework exports. Its SHA-256 is `FE7F398B62DDF23D2EA4C163A0EBFA2BFF80D19B7462224F037F79FA057EA67A`.
 - The installed AMF 1.8.4.0 DLL passes the same derived 88-export contract. Its SHA-256 is `2BB69DF05DD9C3E56C27642F45511C754F754772B63B2AAAB16A99B2FCFF7A2B`.
+- Official AMF source tags through 2.0.3 retain the compatible SMF/cimgui consumer surface used by Whereabouts. AMF 2.x is admitted by fixed major version and remains subject to the same complete required-export probe at startup; no AMF 2.x binary or in-game runtime was installed for this change.
 - The owner-only exact-binary path is supplied through the disposable `WHEREABOUTS_SMF_DLL` CMake cache value. It is never written into source or release archives.
 - SMF render and event callbacks use `__stdcall`; drawing calls are under `ImGuiMCP`.
 - The pinned header is byte-for-byte identical to the current official API repository copy.

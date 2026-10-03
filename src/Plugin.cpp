@@ -160,7 +160,7 @@ namespace
         if (frameworkCompatibility != whereabouts::MenuFrameworkCompatibility::Compatible) {
             logger::error(
                 "Menu framework compatibility rejected: {}{}; "
-                "Whereabouts requires SMF 3.14.x+ within major 3 or AMF 1.8.4+ within major 1",
+                "Whereabouts requires SMF 3.14.x+ within major 3, AMF 1.8.4+ within major 1, or AMF 2.x",
                 whereabouts::MenuFrameworkCompatibilityLabel(frameworkCompatibility),
                 frameworkProbe.missingRequiredExport.empty() ?
                     std::string{} :

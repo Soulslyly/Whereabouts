@@ -8,12 +8,12 @@ Whereabouts adds searchable NPC and location explorers to SKSE Menu Framework. I
 - Microsoft Visual C++ 2015-2022 x64 Redistributable
 - SKSE matching that runtime
 - Address Library for SKSE Plugins matching that runtime
-- One menu framework: SKSE Menu Framework 3.14.1 (DLL fixed version 3.14.x+) or ApocryphaRealm Menu Framework 1.8.4+; do not enable both together
+- One menu framework: SKSE Menu Framework 3.14.1 (DLL fixed version 3.14.x+), ApocryphaRealm Menu Framework 1.8.4+ within major 1, or ApocryphaRealm Menu Framework 2.x; do not enable both frameworks together
 - Backported Extended ESL Support (BEES), on Skyrim 1.5.97 only, for the unchanged modern light-plugin format
 
 UIExtensions, MCM Helper, SkyUI MCM, and PapyrusUtil are not required.
 
-The standard DLL and dependency contracts are tool-validated for all three listed flat runtimes. SMF 3.14.0.0 and AMF 1.8.4.0 pass the exact required-export check. The unified source also builds an experimental VR target, but VR remains untested in game and is not included in the standard Main archive.
+The standard DLL and dependency contracts are tool-validated for all three listed flat runtimes. Exact installed SMF 3.14.0.0 and AMF 1.8.4.0 binaries pass the required-export check; the official AMF 2.x source retains the compatible consumer surface used by Whereabouts, but AMF 2.x still requires an in-game confirmation. The unified source also builds an experimental VR target, but VR remains untested in game and is not included in the standard Main archive.
 
 Standard SKSE translation files are included for all nine Skyrim Special Edition languages. The Main archive contains the translated resources, with English fallback text for any untranslated value. Whereabouts Settings can override its language without changing Skyrim's language, with a full restart required so the whole menu remains consistent.
 

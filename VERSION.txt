@@ -1,10 +1,10 @@
-Whereabouts 2.1.0
-Parent: Whereabouts 2.0.9
+Whereabouts 2.1.1
+Parent: Whereabouts 2.1.0
 Merge evidence: Whereabouts 1.1.0-vr.1
-Status: Tool-validated public-release candidate; Skyrim and VR runtime confirmation pending
+Status: AMF 2.x compatibility implemented and tool-validated; Skyrim and VR runtime confirmation pending
 Source baseline: Whereabouts 1.0.2+layout.5
-Public release predecessor: Whereabouts 2.0.1 candidate
-Created: 2026-09-21
+Public release predecessor: Whereabouts 2.1.0
+Created: 2026-10-02
 Runtime development target: Skyrim 1.6.1170
 Runtime targets: Skyrim 1.5.97, 1.6.1170, and 1.7.104
 CommonLibSSE-NG: v7.2.0 (7a60f4de794095d7b0f8928d1b930a52e9a7da83)

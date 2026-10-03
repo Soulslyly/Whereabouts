@@ -82,9 +82,10 @@ if ($dllName.Equals('SKSEMenuFramework.dll', [StringComparison]::OrdinalIgnoreCa
 elseif ($dllName.Equals('!ApocryphaMenuFramework.dll', [StringComparison]::OrdinalIgnoreCase) -or
         $dllName.Equals('ApocryphaMenuFramework.dll', [StringComparison]::OrdinalIgnoreCase)) {
     $provider = 'ApocryphaRealm Menu Framework'
-    $supportedVersion = $version.FileMajorPart -eq 1 -and
-        ($version.FileMinorPart -gt 8 -or
-         ($version.FileMinorPart -eq 8 -and $version.FileBuildPart -ge 4))
+    $supportedVersion = $version.FileMajorPart -eq 2 -or
+        ($version.FileMajorPart -eq 1 -and
+         ($version.FileMinorPart -gt 8 -or
+          ($version.FileMinorPart -eq 8 -and $version.FileBuildPart -ge 4)))
 }
 else {
     throw "Unknown menu framework provider: $dllName"

@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.1.1 - ApocryphaRealm Menu Framework 2.x compatibility
+
+- Accept AMF 2.x while preserving the existing AMF 1.8.4+ and SMF 3.14.x+ compatibility floors.
+- Continue failing closed when required menu-framework exports are unavailable.
+- Preserve gameplay, UI, saves, settings, ESP, Papyrus, and public API behavior.
+
 ## 2.1.0 - Search result scroll-end correction
 
 - Keep the final Search NPC row fully visible at the bottom of the results scroller.

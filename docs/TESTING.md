@@ -2,14 +2,14 @@
 
 ## Candidate under test
 
-Use the final-hash 2.0.0 Main candidate for runtime passes and compare its SHA-256 with the release validator. Install 2.0.0 as a separate test mod in a disposable profile and save. Retained flat-runtime pairs are Skyrim 1.5.97/SKSE 2.0.20 with BEES, Skyrim 1.6.1170/SKSE 2.2.6, and Skyrim 1.7.104/SKSE 2.3.1. Every profile needs the matching Address Library, an enabled `Whereabouts.esp`, and exactly one supported menu framework: SMF 3.14.x+ within major 3 or AMF 1.8.4+ within major 1. Dependency boot evidence is not Whereabouts runtime acceptance. The VR target remains experimental and untested in game.
+Use the final-hash candidate for runtime passes and compare its SHA-256 with the release validator. Install it as a separate test mod in a disposable profile and save. Retained flat-runtime pairs are Skyrim 1.5.97/SKSE 2.0.20 with BEES, Skyrim 1.6.1170/SKSE 2.2.6, and Skyrim 1.7.104/SKSE 2.3.1. Every profile needs the matching Address Library, an enabled `Whereabouts.esp`, and exactly one supported menu framework: SMF 3.14.x+ within major 3, AMF 1.8.4+ within major 1, or AMF 2.x. Dependency boot evidence is not Whereabouts runtime acceptance. The VR target remains experimental and untested in game.
 
 Before runtime installation, validate all four Main-archive PEX files with `tools/normalize-pex-metadata.ps1 -ValidateOnly`. This proves only that compiler timestamp, user, and computer header fields are canonical; it does not prove script behavior in Skyrim.
 
 ## Dependency startup gate
 
 1. With supported SMF 3.14 enabled by itself, boot to a disposable save and confirm `Whereabouts.log` names SKSE Menu Framework, records fixed version `3.14.x`, accepts compatibility, and reports runtime capability ready before the index rebuild.
-2. Replace SMF with supported AMF 1.8.4 by itself and repeat. Confirm the log names ApocryphaRealm Menu Framework, records fixed version `1.8.4.x`, accepts compatibility, and reports runtime capability ready.
+2. Replace SMF with a supported AMF build by itself and repeat. Confirm the log names ApocryphaRealm Menu Framework, records either fixed version `1.8.4+` within major 1 or a `2.x` version, accepts compatibility, and reports runtime capability ready.
 3. In a disposable profile only, verify an unsupported provider/version is rejected with one clear compatibility log and no Whereabouts pages, index rebuild, console sink activity, or crash.
 4. Confirm no private dependency path or installed framework DLL appears in either release archive.
 

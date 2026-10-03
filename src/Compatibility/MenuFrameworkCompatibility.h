@@ -74,8 +74,9 @@ namespace whereabouts
         case MenuFrameworkProvider::SkseMenuFramework:
             return version.major == 3 && version.minor >= 14;
         case MenuFrameworkProvider::ApocryphaRealmMenuFramework:
-            return version.major == 1 &&
-                   (version.minor > 8 || (version.minor == 8 && version.patch >= 4));
+            return version.major == 2 ||
+                   (version.major == 1 &&
+                    (version.minor > 8 || (version.minor == 8 && version.patch >= 4)));
         case MenuFrameworkProvider::Unknown:
             return false;
         }
