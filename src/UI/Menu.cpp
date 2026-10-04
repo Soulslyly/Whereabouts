@@ -1960,7 +1960,7 @@ namespace whereabouts::ui
             generation,
             location.runtimeFormID,
             location.displayName);
-        if (!token || !SubmitGameTask(*token, [this, location](OperationEpochToken) {
+        if (!token || !SubmitGameTask(*token, [this, location, token = *token](OperationEpochToken) {
                 auto* cell = RE::TESForm::LookupByID<RE::TESObjectCELL>(location.runtimeFormID);
                 const auto identity = TryGetFormIdentity(cell);
                 if (!cell || !identity || *identity != location.identity) {
@@ -1976,10 +1976,29 @@ namespace whereabouts::ui
                     return;
                 }
                 if (player->CenterOnCell(cell)) {
-                    logger::info(
-                        "Location travel completed: FormID {:08X}",
-                        location.runtimeFormID);
-                    SetLocationStatus("Location travel completed.");
+                    if (!SubmitGameTask(token,
+                            [this, expected = location.identity](OperationEpochToken) {
+                                auto* currentPlayer = RE::PlayerCharacter::GetSingleton();
+                                const auto currentIdentity = TryGetFormIdentity(
+                                    currentPlayer ? currentPlayer->GetParentCell() : nullptr);
+                                if (!currentPlayer ||
+                                    !CellArrivalMatches(expected, currentIdentity)) {
+                                    logger::warn(
+                                        "Location travel accepted but destination cell was not reached: {:08X}",
+                                        expected.localID);
+                                    SetLocationStatus("Skyrim could not travel to that location.");
+                                    return;
+                                }
+                                logger::info(
+                                    "Location travel arrival verified: FormID {:08X}",
+                                    expected.localID);
+                                SetLocationStatus("Location travel completed.");
+                            })) {
+                        logger::warn(
+                            "Location travel accepted but arrival verification could not be queued: FormID {:08X}",
+                            location.runtimeFormID);
+                        SetLocationStatus("Skyrim could not travel to that location.");
+                    }
                 } else {
                     logger::warn(
                         "Location travel failed in CenterOnCell: FormID {:08X}",
@@ -2107,7 +2126,7 @@ namespace whereabouts::ui
                     }
                     if (action == ContextualMovementAction::TravelToCell) {
                         searchRefreshState_.Request();
-                        SetCommandStatus("Recorded cell loaded. The NPC may remain unavailable if disabled or quest-gated.");
+                        SetCommandStatus("Travel to Cell queued.");
                     } else {
                         SetCommandStatus("Return queued; exact position will be restored after the cell settles.");
                     }

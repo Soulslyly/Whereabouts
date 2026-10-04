@@ -38,6 +38,10 @@ namespace whereabouts
         return ContextualMovementAction::None;
     }
 
+    [[nodiscard]] bool CellArrivalMatches(
+        const FormIdentity& expected,
+        const std::optional<FormIdentity>& actual) noexcept;
+
     struct ReturnPoint
     {
         FormIdentity cell;

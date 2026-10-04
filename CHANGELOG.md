@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.1.3 - Cell travel completion verification
+
+- Verify arrival in the requested cell before reporting Travel to Cell or Location travel as complete.
+- Report when Skyrim accepts a travel request but the destination cell does not settle, instead of showing a false success.
+- Preserve 2.1.2 behavior outside the travel completion path.
+
 ## 2.1.2 - Menu-framework forward compatibility
 
 - Allow future framework major versions and unrecognized SMF-compatible replacements by default when every required API is present; log their compatibility as untested.

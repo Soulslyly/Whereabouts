@@ -110,10 +110,6 @@ namespace whereabouts
             std::uint32_t selectedRuntimeFormID,
             std::string_view command,
             OperationEpochToken token);
-        void QueueRecordedCellRefresh(
-            std::uint32_t runtimeFormID,
-            OperationEpochToken token) noexcept;
-
         RuntimeIndex& index_;
         TrackingService& tracking_;
         FavoriteService& favorites_;

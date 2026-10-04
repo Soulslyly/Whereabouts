@@ -4,6 +4,13 @@
 
 namespace whereabouts
 {
+    bool CellArrivalMatches(
+        const FormIdentity& expected,
+        const std::optional<FormIdentity>& actual) noexcept
+    {
+        return expected.IsPersistable() && actual && *actual == expected;
+    }
+
     void ReturnPointStore::BeginSession(OperationEpochToken token) noexcept
     {
         try {

@@ -339,7 +339,35 @@ namespace whereabouts
             return std::unexpected("Skyrim could not travel to the recorded cell");
         }
         returnPoint_.Replace(std::move(point));
-        QueueRecordedCellRefresh(selectedRuntimeFormID, token);
+        const auto submitted = operationQueue_.SubmitGame(token,
+            [this, destinationIdentity = destination.identity, selectedRuntimeFormID, token] {
+                auto* currentPlayer = RE::PlayerCharacter::GetSingleton();
+                const auto currentIdentity = TryGetFormIdentity(
+                    currentPlayer ? currentPlayer->GetParentCell() : nullptr);
+                if (!currentPlayer || !CellArrivalMatches(destinationIdentity, currentIdentity)) {
+                    logger::warn(
+                        "Travel to recorded cell did not arrive: expected {:08X}",
+                        destinationIdentity.localID);
+                    completions_.PushContextualMovement({
+                        false,
+                        "Skyrim could not travel to the recorded cell",
+                        token});
+                    return;
+                }
+                if (selectedRuntimeFormID != 0) {
+                    static_cast<void>(index_.RefreshRuntimeId(selectedRuntimeFormID));
+                }
+                logger::info(
+                    "Travel to recorded cell arrival verified: {:08X}",
+                    destinationIdentity.localID);
+                completions_.PushContextualMovement({
+                    true,
+                    "Recorded cell loaded. The NPC may remain unavailable if disabled or quest-gated.",
+                    token});
+            });
+        if (!submitted) {
+            return std::unexpected("Skyrim could not travel to the recorded cell");
+        }
         return {};
     }
 
@@ -396,17 +424,6 @@ namespace whereabouts
         });
         if (!submitted) return std::unexpected("The return request could not be queued");
         return {};
-    }
-
-    void CommandService::QueueRecordedCellRefresh(
-        std::uint32_t runtimeFormID,
-        OperationEpochToken token) noexcept
-    {
-        if (runtimeFormID == 0 || !token) return;
-        static_cast<void>(operationQueue_.SubmitGame(token,
-            [this, runtimeFormID] {
-                static_cast<void>(index_.RefreshRuntimeId(runtimeFormID));
-            }));
     }
 
     void CommandService::CancelPendingConsoleSelection() noexcept
